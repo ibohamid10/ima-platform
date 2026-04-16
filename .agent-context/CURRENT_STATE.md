@@ -4,23 +4,22 @@ Letztes Update: 2026-04-16
 
 ## Stand heute
 
-- **Phase:** 0 (Setup)
-- **Aktuelle Aufgabe:** Repo-Fundament aufbauen, dann Woche 1 starten
-- **Status:** `.agent-context/` wurde gerade als persistentes Projekt-Memory aufgesetzt. Als Naechstes folgen Docker Compose, `LLMProvider`, `MailProvider`, `AgentContract` und `AgentExecutor`.
+- **Phase:** 1 (Woche 1 abgeschlossen)
+- **Aktuelle Aufgabe:** Woche-1-Fundament ist lokal lauffaehig und verifiziert; als Naechstes startet Woche 2 mit Creator-Datenmodell, Growth-Tracker und Evidence-Builder.
+- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest` und die CLI fuer `ima run-agent classifier` laufen lokal. Das Fundament mit `LLMProvider`, `MailProvider`, `AgentContract`, `AgentExecutor`, `agent_runs` und Langfuse-Hook ist implementiert.
 - **Blocker:** Keine
 
 ## Naechste Tasks
 
-1. Docker Compose mit Temporal, Postgres, Redis und Qdrant aufsetzen
-2. `LLMProvider`-Interface plus Anthropic-Adapter plus OpenAI-Adapter implementieren
-3. `MailProvider`-Interface plus ersten Adapter fuer Instantly oder Smartlead implementieren
-4. `AgentContract` als Basisklasse fuer versionierte Rollen-Definitionen erstellen
-5. `AgentExecutor` mit Retry, Validation, Langfuse-Hook und Logging in `agent_runs` bauen
-6. Einen Beispiel-Agenten als Referenz-Implementation erstellen, bevorzugt `Classifier`
+1. `creators`- und erste zugehoerige Tabellen fuer Woche 2 modellieren
+2. Growth-Tracker und Creator-Scoring-Pipeline auf Basis des neuen Datenmodells bauen
+3. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten vor Umsetzung klaeren
+4. Temporal-Workflow fuer den ersten echten Creator-Flow auf das Woche-1-Fundament setzen
+5. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
 
 ## Operativer Hinweis
 
-Die Review-UI ist in diesem Stadium noch nicht relevant. Sie beginnt erst in Woche 4. Bis dahin erfolgt die Interaktion mit der Pipeline ueber SQL-Tools, Temporal UI und CLI-Skripte.
+Die Review-UI ist weiterhin noch nicht relevant. Sie beginnt erst in Woche 4. Bis dahin erfolgt die Interaktion mit der Pipeline ueber SQL-Tools, Temporal UI, Langfuse und CLI-Skripte.
 
 ## Update-Format fuer kuenftige Sessions
 
