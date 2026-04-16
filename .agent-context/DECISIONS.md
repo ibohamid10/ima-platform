@@ -79,3 +79,9 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** Es werden fuenf getrennte Tabellen genutzt (`unsubscribe`, `hard_bounce`, `spam_complaint`, `wrong_person`, `manual`) statt einer einzigen `suppression_list`.
 **Begruendung:** Unterschiedliche Gruende brauchen unterschiedliche Workflows. Spam Complaint ist kritischer als Wrong Person. Zusaetzlich verbessert die Trennung Audit-Trails, DSGVO-Nachweisbarkeit und eine differenzierbare No-Reimport-Policy pro Grund.
 **Verworfene Alternativen:** Einzelne `suppression_list` mit `reason`-Spalte
+
+## 2026-04-16 - Growth-Bewertung ueber Snapshots statt Punktwert-Overwrite
+**Kontext:** Creator-Growth soll explizit ueber Trajectory statt ueber eine einzelne absolute Follower-Zahl bewertet werden. Dafuer braucht das System historische Metriken, die spaeter durch Harvester und Enricher inkrementell fortgeschrieben werden koennen.
+**Entscheidung:** Growth wird ueber eine eigene Tabelle `creator_metric_snapshots` modelliert. Der erste Week-2-Scoring-Pfad liest mehrere Snapshots und berechnet daraus `growth_score`, statt nur den aktuellen `follower_count` in `creators` zu interpretieren.
+**Begruendung:** Das passt zur Architekturregel "Trajectory nicht Absolutzahl", ermoeglicht spaetere Re-Scorings ohne Datenverlust und entkoppelt Rohmetriken von abgeleiteten Scores.
+**Verworfene Alternativen:** Growth nur als direkt ueberschriebener Wert in `creators`, Follower-Deltas ohne historischen Snapshot-Verlauf, reine Absolutzahl ohne Verlauf
