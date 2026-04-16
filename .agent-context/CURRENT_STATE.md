@@ -5,17 +5,16 @@ Letztes Update: 2026-04-16
 ## Stand heute
 
 - **Phase:** 1 (Woche 1 abgeschlossen)
-- **Aktuelle Aufgabe:** Woche-1-Fundament ist lokal lauffaehig und verifiziert; als Naechstes startet Woche 2 mit Creator-Datenmodell, Growth-Tracker und Evidence-Builder.
-- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest` und die CLI fuer `ima run-agent classifier` laufen lokal. Das Fundament mit `LLMProvider`, `MailProvider`, `AgentContract`, `AgentExecutor`, `agent_runs` und Langfuse-Hook ist implementiert.
+- **Aktuelle Aufgabe:** Woche 2 ist gestartet. Das Creator-Datenmodell mit `creators` und `creator_content` liegt als SQL-Migration und ORM-Modell vor; als Naechstes folgen Growth-Tracker und Creator-Scoring auf dieser Basis.
+- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest` und die CLI fuer `ima run-agent classifier` laufen lokal. Zusaetzlich sind `schema_migrations`, `creators` und `creator_content` lokal verifiziert.
 - **Blocker:** Keine
 
 ## Naechste Tasks
 
-1. `creators`- und erste zugehoerige Tabellen fuer Woche 2 modellieren
-2. Growth-Tracker und Creator-Scoring-Pipeline auf Basis des neuen Datenmodells bauen
-3. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten vor Umsetzung klaeren
-4. Temporal-Workflow fuer den ersten echten Creator-Flow auf das Woche-1-Fundament setzen
-5. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
+1. Growth-Tracker und Creator-Scoring-Pipeline auf Basis des neuen Creator-Datenmodells bauen
+2. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten vor Umsetzung klaeren
+3. Temporal-Workflow fuer den ersten echten Creator-Flow auf das Woche-1-Fundament setzen
+4. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
 
 ## Operativer Hinweis
 
