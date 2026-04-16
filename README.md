@@ -18,6 +18,13 @@ uv run python scripts/smoke_test.py
 uv run ima run-agent classifier --input-file tests/golden_sets/classifier/example_input.json
 ```
 
+## Creator-Tracking und Scoring
+
+```bash
+uv run ima creators record-snapshot --platform youtube --handle fitgrowthlocal --captured-at 2026-03-15T10:00:00+00:00 --follower-count 130000 --average-views-30d 12000
+uv run ima creators score --platform youtube --handle fitgrowthlocal
+```
+
 ## Tests
 
 ```bash

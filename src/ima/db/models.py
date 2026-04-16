@@ -114,6 +114,7 @@ class Creator(Base):
     primary_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     niche: Mapped[str | None] = mapped_column(String(64), nullable=True)
     sub_niches: Mapped[list[str]] = mapped_column(JSONType, nullable=False, default=list)
+    growth_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     commercial_readiness_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fraud_risk_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     evidence_coverage_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -139,6 +140,11 @@ class Creator(Base):
     )
 
     content_items: Mapped[list["CreatorContent"]] = relationship(
+        back_populates="creator",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    metric_snapshots: Mapped[list["CreatorMetricSnapshot"]] = relationship(
         back_populates="creator",
         cascade="all, delete-orphan",
         lazy="selectin",
@@ -178,3 +184,33 @@ class CreatorContent(Base):
     )
 
     creator: Mapped[Creator] = relationship(back_populates="content_items", lazy="selectin")
+
+
+class CreatorMetricSnapshot(Base):
+    """Historical creator metrics used for trajectory-aware growth scoring."""
+
+    __tablename__ = "creator_metric_snapshots"
+    __table_args__ = (
+        Index("ix_creator_metric_snapshots_creator_id_captured_at", "creator_id", "captured_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(SAUuid, primary_key=True, default=uuid4)
+    creator_id: Mapped[UUID] = mapped_column(
+        SAUuid,
+        ForeignKey("creators.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    follower_count: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    average_views_30d: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    average_likes_30d: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    average_comments_30d: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    engagement_rate_30d: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False, default="system")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    creator: Mapped[Creator] = relationship(back_populates="metric_snapshots", lazy="selectin")

@@ -4,15 +4,19 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
 import typer
 from pydantic import BaseModel
+from sqlalchemy import select
 
 from ima.agents.classifier.contract import CLASSIFIER_CONTRACT, ClassifierInput
 from ima.agents.executor import AgentExecutor
 from ima.config import settings
+from ima.creators.scoring import CreatorGrowthSnapshotInput, CreatorScoringService
+from ima.db.models import Creator
 from ima.db.session import get_session_factory
 from ima.observability.langfuse_hook import LangfuseHook
 from ima.providers.llm.anthropic_adapter import AnthropicAdapter
@@ -21,7 +25,9 @@ from ima.providers.llm.openai_adapter import OpenAIAdapter
 
 app = typer.Typer(help="CLI for local IMA agent execution.")
 run_agent_app = typer.Typer(help="Run a specific agent contract.")
+creator_app = typer.Typer(help="Creator growth tracking and scoring tools.")
 app.add_typer(run_agent_app, name="run-agent")
+app.add_typer(creator_app, name="creators")
 
 
 class OfflineClassifierProvider:
@@ -146,3 +152,123 @@ def main() -> None:
     """Execute the Typer application."""
 
     app()
+
+
+def _parse_captured_at(captured_at: str | None) -> datetime | None:
+    """Parse ISO timestamps for creator snapshot ingestion."""
+
+    if captured_at is None:
+        return None
+
+    normalized = captured_at.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise typer.BadParameter(
+            "--captured-at muss ISO-8601 sein, z.B. 2026-03-15T10:00:00+00:00."
+        ) from exc
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed
+
+
+@creator_app.command("score")
+def score_creator(
+    handle: str = typer.Option(..., "--handle"),
+    platform: str = typer.Option(..., "--platform"),
+) -> None:
+    """Score one creator by platform and handle."""
+
+    asyncio.run(_score_creator(handle=handle, platform=platform))
+
+
+async def _score_creator(handle: str, platform: str) -> None:
+    """Load one creator and print the current scoring result as JSON."""
+
+    async with get_session_factory()() as session:
+        service = CreatorScoringService(session)
+        result = await service.score_creator_by_handle(platform=platform, handle=handle)
+        await session.commit()
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
+@creator_app.command("record-snapshot")
+def record_snapshot(
+    handle: str = typer.Option(..., "--handle"),
+    platform: str = typer.Option(..., "--platform"),
+    captured_at: str | None = typer.Option(None, "--captured-at"),
+    follower_count: int | None = typer.Option(None, "--follower-count"),
+    average_views_30d: int | None = typer.Option(None, "--average-views-30d"),
+    average_likes_30d: int | None = typer.Option(None, "--average-likes-30d"),
+    average_comments_30d: int | None = typer.Option(None, "--average-comments-30d"),
+    engagement_rate_30d: float | None = typer.Option(None, "--engagement-rate-30d"),
+    source: str = typer.Option("manual", "--source"),
+) -> None:
+    """Persist one creator metric snapshot for local development."""
+
+    asyncio.run(
+        _record_snapshot(
+            handle=handle,
+            platform=platform,
+            captured_at=_parse_captured_at(captured_at),
+            follower_count=follower_count,
+            average_views_30d=average_views_30d,
+            average_likes_30d=average_likes_30d,
+            average_comments_30d=average_comments_30d,
+            engagement_rate_30d=engagement_rate_30d,
+            source=source,
+        )
+    )
+
+
+async def _record_snapshot(
+    handle: str,
+    platform: str,
+    captured_at: datetime | None,
+    follower_count: int | None,
+    average_views_30d: int | None,
+    average_likes_30d: int | None,
+    average_comments_30d: int | None,
+    engagement_rate_30d: float | None,
+    source: str,
+) -> None:
+    """Resolve a creator and store one metric snapshot."""
+
+    async with get_session_factory()() as session:
+        creator = await session.scalar(
+            select(Creator).where(Creator.platform == platform, Creator.handle == handle)
+        )
+        if creator is None:
+            raise typer.BadParameter(f"Creator {platform}/{handle} wurde nicht gefunden.")
+
+        service = CreatorScoringService(session)
+        snapshot = await service.record_snapshot(
+            CreatorGrowthSnapshotInput(
+                creator_id=str(creator.id),
+                captured_at=captured_at or datetime.now(UTC),
+                follower_count=follower_count,
+                average_views_30d=average_views_30d,
+                average_likes_30d=average_likes_30d,
+                average_comments_30d=average_comments_30d,
+                engagement_rate_30d=(
+                    Decimal(str(engagement_rate_30d))
+                    if engagement_rate_30d is not None
+                    else None
+                ),
+                source=source,
+            )
+        )
+        await session.commit()
+    typer.echo(
+        json.dumps(
+            {
+                "snapshot_id": str(snapshot.id),
+                "creator_id": str(snapshot.creator_id),
+                "captured_at": snapshot.captured_at.isoformat(),
+                "source": snapshot.source,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
