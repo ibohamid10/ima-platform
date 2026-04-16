@@ -218,7 +218,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "node -e \"const net=require('net');const socket=net.connect(3030,'127.0.0.1');socket.on('connect',()=>{socket.end();process.exit(0);});socket.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000);\"",
+          "node -e \"const os=require('os');const net=require('net');const host=os.hostname();const socket=net.connect(3030,host);socket.on('connect',()=>{socket.end();process.exit(0);});socket.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000);\"",
         ]
       interval: 15s
       timeout: 5s
@@ -257,7 +257,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "node -e \"const net=require('net');const socket=net.connect(3000,'127.0.0.1');socket.on('connect',()=>{socket.end();process.exit(0);});socket.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000);\"",
+          "node -e \"const os=require('os');const net=require('net');const host=os.hostname();const socket=net.connect(3000,host);socket.on('connect',()=>{socket.end();process.exit(0);});socket.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000);\"",
         ]
       interval: 15s
       timeout: 5s

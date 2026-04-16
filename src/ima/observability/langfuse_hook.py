@@ -79,7 +79,7 @@ class LangfuseHook:
             public_key=settings.langfuse_public_key,
             secret_key=settings.langfuse_secret_key,
             host=self.base_url,
-            timeout=5,
+            timeout=20,
         )
 
     def start_trace(
