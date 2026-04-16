@@ -1,0 +1,140 @@
+- case_id: fitness_de_001
+  input:
+    creator_handle: "fitnessfranz"
+    platform: youtube
+    bio: "Hyrox Athlet aus Wien | Training und Ernaehrung"
+    recent_captions:
+      - "Neues Hyrox-PR-Video ist online!"
+      - "Meine Ernaehrung vor Wettkaempfen"
+    top_hashtags: ["#hyrox", "#fitness", "#wien"]
+  expected:
+    niche: fitness
+    sub_niches: ["hyrox", "nutrition"]
+    language: de
+    brand_safety_score_min: 8
+- case_id: food_de_001
+  input:
+    creator_handle: "kochkatja"
+    platform: instagram
+    bio: "Einfache Rezepte aus Berlin"
+    recent_captions:
+      - "Heute gibt es schnelle Pasta fuer den Feierabend"
+      - "Meal Prep fuer stressige Wochen"
+    top_hashtags: ["#rezepte", "#food", "#berlin"]
+  expected:
+    niche: food
+    sub_niches: ["recipes", "meal-prep"]
+    language: de
+    brand_safety_score_min: 9
+- case_id: tech_de_001
+  input:
+    creator_handle: "techtom"
+    platform: youtube
+    bio: "Gadgets, KI und SaaS-Tools auf Deutsch"
+    recent_captions:
+      - "Die besten AI Tools fuer Solo-Founder"
+      - "Notebook Vergleich 2026"
+    top_hashtags: ["#ai", "#tech", "#saas"]
+  expected:
+    niche: tech
+    sub_niches: ["ai", "saas"]
+    language: de
+    brand_safety_score_min: 8
+- case_id: fitness_en_001
+  input:
+    creator_handle: "coachmiles"
+    platform: instagram
+    bio: "Strength coach helping runners stay injury free"
+    recent_captions:
+      - "Three mobility drills before speed work"
+      - "Race week lifting plan"
+    top_hashtags: ["#running", "#strength", "#mobility"]
+  expected:
+    niche: fitness
+    sub_niches: ["running", "strength"]
+    language: en
+    brand_safety_score_min: 8
+- case_id: lifestyle_en_001
+  input:
+    creator_handle: "citywithamy"
+    platform: tiktok
+    bio: "NYC routines, home decor and cafe hopping"
+    recent_captions:
+      - "A cozy Sunday reset"
+      - "Three cafes worth the subway ride"
+    top_hashtags: ["#lifestyle", "#nyc", "#cozy"]
+  expected:
+    niche: lifestyle
+    sub_niches: ["home-decor", "city-life"]
+    language: en
+    brand_safety_score_min: 8
+- case_id: tech_en_001
+  input:
+    creator_handle: "buildwithleo"
+    platform: youtube
+    bio: "Shipping indie SaaS and AI workflows"
+    recent_captions:
+      - "How I automated support triage"
+      - "Weekly solo founder stack"
+    top_hashtags: ["#saas", "#automation", "#ai"]
+  expected:
+    niche: tech
+    sub_niches: ["saas", "automation"]
+    language: en
+    brand_safety_score_min: 8
+- case_id: edge_short_bio_001
+  input:
+    creator_handle: "annax"
+    platform: instagram
+    bio: "✨"
+    recent_captions:
+      - "Matcha and pilates mornings"
+      - "Soft launch of my journaling routine"
+    top_hashtags: ["#pilates", "#wellness", "#morningroutine"]
+  expected:
+    niche: lifestyle
+    sub_niches: ["wellness", "routine"]
+    language: en
+    brand_safety_score_min: 7
+- case_id: edge_multilingual_001
+  input:
+    creator_handle: "fitmara"
+    platform: youtube
+    bio: "Fitness coach in Munich | Deutsch & English workouts"
+    recent_captions:
+      - "Heute Beine, tomorrow recovery"
+      - "Meal ideas for busy mornings"
+    top_hashtags: ["#fitness", "#workout", "#muenchen"]
+  expected:
+    niche: fitness
+    sub_niches: ["workouts", "nutrition"]
+    language: de
+    brand_safety_score_min: 7
+- case_id: unsafe_political_001
+  input:
+    creator_handle: "rantkanal"
+    platform: tiktok
+    bio: "Tagespolitik und harte Meinungen"
+    recent_captions:
+      - "Heute zerlegen wir wieder die da oben"
+      - "Warum alle Medien luegen"
+    top_hashtags: ["#politik", "#meinung", "#kontroverse"]
+  expected:
+    niche: other
+    sub_niches: ["politics", "commentary"]
+    language: de
+    brand_safety_score_min: 2
+- case_id: unsafe_explicit_001
+  input:
+    creator_handle: "chaosstream"
+    platform: youtube
+    bio: "Shock humor, adult jokes and chaotic live streams"
+    recent_captions:
+      - "This stream got way too explicit"
+      - "Unfiltered roast night"
+    top_hashtags: ["#adulthumor", "#nsfw", "#drama"]
+  expected:
+    niche: other
+    sub_niches: ["shock-humor", "drama"]
+    language: en
+    brand_safety_score_min: 1
