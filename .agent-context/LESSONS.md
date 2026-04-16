@@ -42,3 +42,10 @@ Jeder Eintrag nutzt dieses Schema:
 **Root Cause:** Typer akzeptierte fuer `datetime`-Optionen im Default-Parsing nur ein eingeschraenktes Formatset ohne Offset-Variante.
 **Fix:** `--captured-at` wird jetzt als String entgegengenommen und bewusst via `datetime.fromisoformat()` in UTC-normalisierte Werte geparst.
 **Prevention-Rule:** Fuer operator-facing CLI-Eingaben mit Zeitbezug kein implizites Framework-Parsing voraussetzen; akzeptierte Formate explizit kontrollieren und testen.
+
+## 2026-04-16 - UUID-Vergleiche in Tests nie implizit als Strings behandeln
+**Kategorie:** DB
+**Symptom:** Der neue Creator-Ingest-Pfad lief gegen Postgres lokal, scheiterte aber in den SQLite-basierten Unit-Tests mit `AttributeError: 'str' object has no attribute 'hex'`.
+**Root Cause:** Beim Content-Upsert wurde `creator_id` als String durchgereicht, obwohl die ORM-Spalte als UUID typisiert ist. Postgres war tolerant genug, SQLite nicht.
+**Fix:** Die Ingest-Logik nutzt fuer UUID-vergleichende Queries jetzt durchgehend echte `UUID`-Objekte.
+**Prevention-Rule:** Bei Cross-DB-Tests keine stillschweigende String-zu-UUID-Konvertierung erwarten; typisierte IDs im Python-Code immer im nativen Typ halten.

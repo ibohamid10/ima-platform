@@ -23,6 +23,7 @@ uv run ima run-agent classifier --input-file tests/golden_sets/classifier/exampl
 ```bash
 uv run ima creators record-snapshot --platform youtube --handle fitgrowthlocal --captured-at 2026-03-15T10:00:00+00:00 --follower-count 130000 --average-views-30d 12000
 uv run ima creators score --platform youtube --handle fitgrowthlocal
+uv run ima creators ingest --input-file tests/fixtures/creator_ingest_example.json
 ```
 
 ## Tests

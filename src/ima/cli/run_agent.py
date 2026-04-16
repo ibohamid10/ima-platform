@@ -15,6 +15,7 @@ from sqlalchemy import select
 from ima.agents.classifier.contract import CLASSIFIER_CONTRACT, ClassifierInput
 from ima.agents.executor import AgentExecutor
 from ima.config import settings
+from ima.creators.ingest import CreatorIngestInput, CreatorIngestService
 from ima.creators.scoring import CreatorGrowthSnapshotInput, CreatorScoringService
 from ima.db.models import Creator
 from ima.db.session import get_session_factory
@@ -272,3 +273,21 @@ async def _record_snapshot(
             ensure_ascii=False,
         )
     )
+
+
+@creator_app.command("ingest")
+def ingest_creator(input_file: Path = typer.Option(..., "--input-file", exists=True, readable=True)) -> None:
+    """Ingest one creator payload from JSON, then snapshot and score it."""
+
+    asyncio.run(_ingest_creator(input_file))
+
+
+async def _ingest_creator(input_file: Path) -> None:
+    """Read one ingest payload from disk and execute the local ingest pipeline."""
+
+    payload = CreatorIngestInput.model_validate_json(input_file.read_text(encoding="utf-8"))
+    async with get_session_factory()() as session:
+        service = CreatorIngestService(session)
+        result = await service.ingest(payload)
+        await session.commit()
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))

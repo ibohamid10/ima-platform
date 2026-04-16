@@ -1,1 +1,1 @@
-"""Creator growth tracking and scoring helpers."""
+"""Creator ingest, growth tracking, and scoring helpers."""
