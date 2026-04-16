@@ -67,3 +67,15 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** In Phase 1 wird keine oeffentliche Website gebaut. Die einzige eigene UI ist eine Operator-Only Review-UI. Next.js ist der empfohlene Stack, die finale UI-Framework-Entscheidung faellt spaetestens Ende Woche 3.
 **Begruendung:** Das Projekt ist eine interne Pipeline. Phase-1-Wert entsteht durch funktionierende Discovery-, Matching- und Outreach-Prozesse, nicht durch eine oeffentliche Flaeche.
 **Verworfene Alternativen:** Oeffentliche Landingpage in Phase 1, sofortige Festlegung ohne Review bis Ende Woche 3, Customer-Portal
+
+## 2026-04-16 - MailProvider als zweiter Adapter-Layer
+**Kontext:** Neben `LLMProvider` gibt es Bedarf, Sending-Vendor wie Instantly, Smartlead und spaeter SMTP austauschbar zu halten.
+**Entscheidung:** Es gibt einen eigenen `MailProvider`-Adapter parallel zu `LLMProvider`; beide gehoeren in das Woche-1-Fundament.
+**Begruendung:** Das verhindert Vendor-Lock-in auf Sending-Seite und erlaubt spaetere Wechsel ohne Workflow-Refactor.
+**Verworfene Alternativen:** Direkte Instantly-SDK-Calls im Fachcode, Sending-Logik nur in Temporal-Activities ohne Abstraktion
+
+## 2026-04-16 - Suppression als fuenf getrennte Tabellen
+**Kontext:** Suppression kann als einzelne Liste oder nach Grund getrennt modelliert werden.
+**Entscheidung:** Es werden fuenf getrennte Tabellen genutzt (`unsubscribe`, `hard_bounce`, `spam_complaint`, `wrong_person`, `manual`) statt einer einzigen `suppression_list`.
+**Begruendung:** Unterschiedliche Gruende brauchen unterschiedliche Workflows. Spam Complaint ist kritischer als Wrong Person. Zusaetzlich verbessert die Trennung Audit-Trails, DSGVO-Nachweisbarkeit und eine differenzierbare No-Reimport-Policy pro Grund.
+**Verworfene Alternativen:** Einzelne `suppression_list` mit `reason`-Spalte

@@ -48,6 +48,7 @@ Dieses Projekt bevorzugt einfache, austauschbare und beobachtbare Bausteine. Fac
 - `pytest-asyncio` fuer async Tests
 - Fixture-Factories statt schwerer globaler Fixtures
 - Golden Sets fuer Agent-Evals separat und reproduzierbar pflegen
+- Jeder LLM-basierte Agent muss mindestens einen Golden-Set-Test haben, der gegen verifizierte Input/Output-Paare laeuft. Ohne Golden Set kein Merge.
 - Contract-Tests fuer Provider-Adapter
 - Workflow-nahe Tests fuer kritische Gates wie Suppression und Evidence-Coverage
 

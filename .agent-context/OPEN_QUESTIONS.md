@@ -29,3 +29,7 @@ Offene Fragen gehoeren hierher, wenn sie fuer Scope, Architektur, Priorisierung 
 ## Erster MailProvider-Adapter in Woche 1
 **Kontext:** Das Abstraktionsmodell ist gesetzt, aber der erste konkrete Adapter ist noch offen.
 **Trigger fuer Entscheidung:** In Woche 1 vor Start der Mail-Integration. Kandidaten sind Instantly oder Smartlead.
+
+## Storage-Strategie fuer Evidence-Rohdaten
+**Kontext:** Evidence-Builder erzeugt Rohdaten wie HTML-Snapshots, Screenshots und Scrape-Responses, die in R2 oder S3 persistiert werden muessen.
+**Trigger fuer Entscheidung:** Vor Implementation des Evidence-Builders in Woche 2. Zu klaeren sind Retention-Policy, Pfad-Struktur, Format fuer Referenzen in `evidence_items.source_uri` und Verschluesselung.

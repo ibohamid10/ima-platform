@@ -1,5 +1,7 @@
 # Current State
 
+Letztes Update: 2026-04-16
+
 ## Stand heute
 
 - **Phase:** 0 (Setup)

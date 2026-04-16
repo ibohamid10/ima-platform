@@ -4,26 +4,26 @@
 
 Jede Agent-Session endet mit diesem kurzen Review:
 
-- Ist `CURRENT_STATE.md` aktualisiert
-- Hat die Session eine neue Entscheidung erzeugt, die in `DECISIONS.md` festgehalten werden muss
-- Hat die Session einen Fehler oder teuren Umweg sichtbar gemacht, der in `LESSONS.md` gehoert
-- Wurde eine offene Frage geklaert und deshalb aus `OPEN_QUESTIONS.md` entfernt
-- Ist eine neue offene Frage entstanden und wurde sie in `OPEN_QUESTIONS.md` ergaenzt
-- Referenziert die Commit-Message relevante Context-Files oder ist der Scope aus dem Diff klar genug
+- [ ] Ist `CURRENT_STATE.md` aktualisiert
+- [ ] Hat die Session eine neue Entscheidung erzeugt, die in `DECISIONS.md` festgehalten werden muss
+- [ ] Hat die Session einen Fehler oder teuren Umweg sichtbar gemacht, der in `LESSONS.md` gehoert
+- [ ] Wurde eine offene Frage geklaert und deshalb aus `OPEN_QUESTIONS.md` entfernt
+- [ ] Ist eine neue offene Frage entstanden und wurde sie in `OPEN_QUESTIONS.md` ergaenzt
+- [ ] Referenziert die Commit-Message relevante Context-Files oder ist der Scope aus dem Diff klar genug
 
 ## Wochen-Review-Checkliste (15 Minuten)
 
-- Stimmt `CURRENT_STATE.md` noch mit der Realitaet ueberein
-- Sind `DECISIONS.md` und `ARCHITECTURE.md` konsistent
-- Gibt es offene Fragen, die eigentlich schon entschieden wurden
-- Gibt es Learnings aus der Woche, die nur in Chat-Verlaeufen existieren
-- Ist der Bootstrap-Pfad fuer neue Sessions noch schlank genug
+- [ ] Stimmt `CURRENT_STATE.md` noch mit der Realitaet ueberein
+- [ ] Sind `DECISIONS.md` und `ARCHITECTURE.md` konsistent
+- [ ] Gibt es offene Fragen, die eigentlich schon entschieden wurden
+- [ ] Gibt es Learnings aus der Woche, die nur in Chat-Verlaeufen existieren
+- [ ] Ist der Bootstrap-Pfad fuer neue Sessions noch schlank genug
 
 ## Phasen-Abschluss-Review-Checkliste (1 Stunde)
 
-- Wurden die Phasen-Ziele aus `PROJECT.md` tatsaechlich erreicht
-- Welche Entscheidungen haben sich bewaehrt und welche brauchen Nachschaerfung
-- Welche Architekturteile erzeugen unerwartete Komplexitaet
-- Welche Fehler haben sich wiederholt und was fehlt als Prevention-Rule
-- Welche Dokumente koennen gekuerzt, archiviert oder neu strukturiert werden
-- Ist `CURRENT_STATE.md` sauber auf den Start der naechsten Phase ausgerichtet
+- [ ] Wurden die Phasen-Ziele aus `PROJECT.md` tatsaechlich erreicht
+- [ ] Welche Entscheidungen haben sich bewaehrt und welche brauchen Nachschaerfung
+- [ ] Welche Architekturteile erzeugen unerwartete Komplexitaet
+- [ ] Welche Fehler haben sich wiederholt und was fehlt als Prevention-Rule
+- [ ] Welche Dokumente koennen gekuerzt, archiviert oder neu strukturiert werden
+- [ ] Ist `CURRENT_STATE.md` sauber auf den Start der naechsten Phase ausgerichtet
