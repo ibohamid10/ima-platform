@@ -39,7 +39,13 @@ class Settings(BaseSettings):
     )
     evidence_storage_backend: str = Field(default="local", alias="EVIDENCE_STORAGE_BACKEND")
     evidence_storage_root: str = Field(default="data/evidence", alias="EVIDENCE_STORAGE_ROOT")
-    evidence_storage_bucket: str = Field(default="ima-evidence-dev", alias="EVIDENCE_STORAGE_BUCKET")
+    evidence_storage_bucket: str = Field(
+        default="ima-evidence-dev", alias="EVIDENCE_STORAGE_BUCKET"
+    )
+    scoring_config_path: str = Field(
+        default="config/scoring.default.yaml",
+        alias="SCORING_CONFIG_PATH",
+    )
     evidence_fetch_timeout_seconds: float = Field(
         default=15.0,
         alias="EVIDENCE_FETCH_TIMEOUT_SECONDS",

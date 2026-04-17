@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from ima.db.models import ConsentStatus, Creator, CreatorContent, CreatorContentType, CreatorPlatform
+from ima.db.models import (
+    ConsentStatus,
+    Creator,
+    CreatorContent,
+    CreatorContentType,
+    CreatorPlatform,
+)
 
 
 async def test_creator_and_content_relationship(sqlite_session_factory) -> None:
@@ -16,8 +22,8 @@ async def test_creator_and_content_relationship(sqlite_session_factory) -> None:
             handle="fitnessfranz",
             profile_url="https://youtube.com/@fitnessfranz",
             bio="Hyrox Athlet aus Wien",
-            follower_count=125000,
-            consent_status=ConsentStatus.LEGITIMATE_INTEREST.value,
+            followers=125000,
+            consent_basis=ConsentStatus.LEGITIMATE_INTEREST.value,
             source_labels=["youtube_api"],
         )
         creator.content_items.append(
@@ -25,8 +31,8 @@ async def test_creator_and_content_relationship(sqlite_session_factory) -> None:
                 content_type=CreatorContentType.VIDEO.value,
                 platform_content_id="yt-123",
                 title="Hyrox PR in Wien",
-                caption_text="Neue Bestzeit im Training.",
-                top_hashtags=["hyrox", "fitness", "wien"],
+                caption="Neue Bestzeit im Training.",
+                hashtags=["hyrox", "fitness", "wien"],
                 raw_payload={"source": "fixture"},
             )
         )
@@ -40,6 +46,6 @@ async def test_creator_and_content_relationship(sqlite_session_factory) -> None:
 
     assert stored_creator is not None
     assert stored_creator.platform == CreatorPlatform.YOUTUBE.value
-    assert stored_creator.consent_status == ConsentStatus.LEGITIMATE_INTEREST.value
+    assert stored_creator.consent_basis == ConsentStatus.LEGITIMATE_INTEREST.value
     assert len(stored_creator.content_items) == 1
     assert stored_creator.content_items[0].content_type == CreatorContentType.VIDEO.value

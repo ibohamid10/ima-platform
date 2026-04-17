@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+)
 from sqlalchemy import Uuid as SAUuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncAttrs
@@ -47,8 +57,8 @@ class CreatorContentType(StrEnum):
     TIKTOK = "tiktok"
 
 
-class ConsentStatus(StrEnum):
-    """Consent tracking status for creator outreach eligibility."""
+class ConsentBasis(StrEnum):
+    """Consent basis tracking for creator outreach eligibility."""
 
     UNKNOWN = "unknown"
     LEGITIMATE_INTEREST = "legitimate_interest"
@@ -56,6 +66,7 @@ class ConsentStatus(StrEnum):
     SUPPRESSED = "suppressed"
 
 
+ConsentStatus = ConsentBasis
 JSONType = JSON().with_variant(JSONB, "postgresql")
 
 
@@ -87,7 +98,7 @@ class AgentRun(Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     trace_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
@@ -107,44 +118,52 @@ class Creator(Base):
     platform: Mapped[str] = mapped_column(String(32), nullable=False)
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     handle: Mapped[str] = mapped_column(String(255), nullable=False)
-    profile_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    profile_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
-    follower_count: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    primary_language: Mapped[str | None] = mapped_column(String(8), nullable=True)
-    niche: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    sub_niches: Mapped[list[str]] = mapped_column(JSONType, nullable=False, default=list)
-    growth_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    commercial_readiness_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    fraud_risk_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    evidence_coverage_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    consent_status: Mapped[str] = mapped_column(
+    followers: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    niche_labels: Mapped[list[str]] = mapped_column(JSONType, nullable=False, default=list)
+    language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    geo: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    avg_views_30d: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    avg_views_90d: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    avg_engagement_30d: Mapped[Decimal | None] = mapped_column(Numeric(8, 4), nullable=True)
+    growth_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
+    niche_fit_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
+    commercial_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
+    fraud_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
+    evidence_coverage_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email_confidence: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
+    consent_basis: Mapped[str | None] = mapped_column(
         String(32),
-        nullable=False,
-        default=ConsentStatus.UNKNOWN.value,
+        nullable=True,
+        default=ConsentBasis.UNKNOWN.value,
     )
-    consent_recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    consent_recorded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     source_labels: Mapped[list[str]] = mapped_column(JSONType, nullable=False, default=list)
     is_qualified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
-    content_items: Mapped[list["CreatorContent"]] = relationship(
+    content_items: Mapped[list[CreatorContent]] = relationship(
         back_populates="creator",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    metric_snapshots: Mapped[list["CreatorMetricSnapshot"]] = relationship(
+    metric_snapshots: Mapped[list[CreatorMetricSnapshot]] = relationship(
         back_populates="creator",
         cascade="all, delete-orphan",
         lazy="selectin",
@@ -170,17 +189,20 @@ class CreatorContent(Base):
     content_type: Mapped[str] = mapped_column(String(32), nullable=False)
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    caption_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    caption: Mapped[str | None] = mapped_column(Text, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     view_count: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     like_count: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     comment_count: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    top_hashtags: Mapped[list[str]] = mapped_column(JSONType, nullable=False, default=list)
+    hashtags: Mapped[list[str]] = mapped_column(JSONType, nullable=False, default=list)
+    detected_brands: Mapped[list[str] | None] = mapped_column(JSONType, nullable=True)
+    sponsor_probability: Mapped[Decimal | None] = mapped_column(Numeric(6, 4), nullable=True)
+    raw_snapshot_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_payload: Mapped[dict[str, object] | None] = mapped_column(JSONType, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     creator: Mapped[Creator] = relationship(back_populates="content_items", lazy="selectin")
@@ -210,7 +232,7 @@ class CreatorMetricSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     creator: Mapped[Creator] = relationship(back_populates="metric_snapshots", lazy="selectin")
@@ -221,6 +243,7 @@ class EvidenceItem(Base):
 
     __tablename__ = "evidence_items"
     __table_args__ = (
+        Index("ix_evidence_items_entity_type_entity_id", "entity_type", "entity_id"),
         Index("ix_evidence_items_creator_id", "creator_id"),
         Index("ix_evidence_items_content_id", "content_id"),
         Index("ix_evidence_items_snapshot_id", "snapshot_id"),
@@ -228,6 +251,8 @@ class EvidenceItem(Base):
     )
 
     id: Mapped[UUID] = mapped_column(SAUuid, primary_key=True, default=uuid4)
+    entity_type: Mapped[str] = mapped_column(String(32), nullable=False, default="creator")
+    entity_id: Mapped[UUID] = mapped_column(SAUuid, nullable=False)
     creator_id: Mapped[UUID] = mapped_column(
         SAUuid,
         ForeignKey("creators.id", ondelete="CASCADE"),
@@ -245,14 +270,15 @@ class EvidenceItem(Base):
     )
     source_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     evidence_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    source_kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
     claim_text: Mapped[str] = mapped_column(Text, nullable=False)
     source_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=1.0)
     artifact_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
     snippet_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[dict[str, object]] = mapped_column(JSONType, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

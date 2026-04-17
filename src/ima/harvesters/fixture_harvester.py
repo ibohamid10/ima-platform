@@ -10,7 +10,7 @@ from ima.creators.schemas import (
     CreatorIngestInput,
     CreatorMetricSnapshotPayload,
 )
-from ima.harvesters.schemas import HarvestFixtureBatch, HarvestedCreatorRecord
+from ima.harvesters.schemas import HarvestedCreatorRecord, HarvestFixtureBatch
 
 
 class FixtureCreatorHarvester:
@@ -42,7 +42,7 @@ class CreatorEnricherStub:
         if record.metric_snapshot is not None:
             metric_snapshot = CreatorMetricSnapshotPayload(
                 captured_at=record.metric_snapshot.captured_at,
-                follower_count=record.metric_snapshot.follower_count,
+                followers=record.metric_snapshot.followers,
                 average_views_30d=record.metric_snapshot.average_views_30d,
                 average_likes_30d=record.metric_snapshot.average_likes_30d,
                 average_comments_30d=record.metric_snapshot.average_comments_30d,
@@ -57,10 +57,12 @@ class CreatorEnricherStub:
             profile_url=record.profile_url,
             display_name=record.display_name,
             bio=record.bio,
-            follower_count=record.follower_count,
-            primary_language=record.primary_language,
-            niche=record.niche,
-            sub_niches=record.sub_niches,
+            followers=record.followers,
+            language=record.language,
+            geo=record.geo,
+            niche_labels=record.niche_labels,
+            email=record.email,
+            email_confidence=record.email_confidence,
             source_labels=source_labels,
             metric_snapshot=metric_snapshot,
             content_items=[
@@ -69,15 +71,17 @@ class CreatorEnricherStub:
                     content_type=item.content_type,
                     url=item.url,
                     title=item.title,
-                    caption_text=item.caption_text,
+                    caption=item.caption,
                     published_at=item.published_at,
                     view_count=item.view_count,
                     like_count=item.like_count,
                     comment_count=item.comment_count,
-                    top_hashtags=item.top_hashtags,
+                    hashtags=item.hashtags,
+                    detected_brands=item.detected_brands,
+                    sponsor_probability=item.sponsor_probability,
+                    raw_snapshot_uri=item.raw_snapshot_uri,
                     raw_payload=item.raw_payload,
                 )
                 for item in record.content_items
             ],
         )
-

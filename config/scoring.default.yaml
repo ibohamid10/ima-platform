@@ -1,0 +1,63 @@
+target_niche: fitness
+target_sub_niches:
+  - hyrox
+  - nutrition
+niche_fit:
+  primary_label_weight: 0.7
+  sub_label_weight: 0.3
+growth:
+  neutral_score: 0.5
+  strong_growth_ratio: 0.3
+  strong_growth_score: 0.9
+  solid_growth_ratio: 0.2
+  solid_growth_score: 0.8
+  healthy_growth_ratio: 0.1
+  healthy_growth_score: 0.7
+  mild_growth_ratio: 0.03
+  mild_growth_score: 0.6
+  flat_band_ratio: -0.03
+  flat_band_score: 0.5
+  decline_band_ratio: -0.1
+  decline_band_score: 0.35
+  steep_decline_score: 0.2
+  healthy_view_ratio_bonus_threshold: 0.08
+  healthy_view_ratio_bonus: 0.05
+commercial:
+  base_score: 0.25
+  bio_bonus: 0.15
+  profile_url_bonus: 0.15
+  display_name_bonus: 0.05
+  external_id_bonus: 0.05
+  target_range_bonus: 0.2
+  fallback_range_bonus: 0.1
+  target_min_followers: 100000
+  target_max_followers: 1000000
+  fallback_min_followers: 25000
+  strong_content_count: 5
+  medium_content_count: 3
+  strong_content_bonus: 0.15
+  medium_content_bonus: 0.1
+  url_bonus: 0.05
+fraud:
+  base_risk: 0.15
+  no_content_penalty: 0.25
+  low_view_ratio_threshold: 0.005
+  low_view_ratio_penalty: 0.35
+  medium_view_ratio_threshold: 0.01
+  medium_view_ratio_penalty: 0.2
+  repetitive_hashtag_penalty: 0.1
+evidence_coverage:
+  bio_weight: 0.2
+  profile_url_weight: 0.2
+  followers_weight: 0.2
+  content_weight: 0.2
+  raw_payload_weight: 0.2
+  minimum_content_items: 3
+qualification:
+  min_growth_score: 0.6
+  min_niche_fit_score: 0.5
+  min_commercial_score: 0.6
+  max_fraud_score: 0.4
+  min_evidence_coverage_score: 0.6
+  min_followers: 100000
+  max_followers: 1000000

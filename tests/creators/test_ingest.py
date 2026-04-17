@@ -7,7 +7,12 @@ from decimal import Decimal
 
 from sqlalchemy import func, select
 
-from ima.creators.ingest import CreatorContentInput, CreatorIngestInput, CreatorIngestService, CreatorMetricSnapshotPayload
+from ima.creators.ingest import (
+    CreatorContentInput,
+    CreatorIngestInput,
+    CreatorIngestService,
+    CreatorMetricSnapshotPayload,
+)
 from ima.db.models import Creator, CreatorContent, CreatorMetricSnapshot
 
 
@@ -24,12 +29,13 @@ async def test_creator_ingest_creates_records_and_scores(sqlite_session_factory)
                 profile_url="https://youtube.com/@ingestfresh",
                 display_name="Ingest Fresh",
                 bio="Hyrox coach and nutrition creator from Vienna.",
-                follower_count=180000,
-                primary_language="en",
+                followers=180000,
+                language="en",
+                niche_labels=["fitness", "hyrox", "nutrition"],
                 source_labels=["youtube_api"],
                 metric_snapshot=CreatorMetricSnapshotPayload(
                     captured_at=datetime.now(UTC),
-                    follower_count=180000,
+                    followers=180000,
                     average_views_30d=18000,
                     engagement_rate_30d=Decimal("0.0450"),
                     source="fixture",
@@ -40,8 +46,8 @@ async def test_creator_ingest_creates_records_and_scores(sqlite_session_factory)
                         content_type="video",
                         url="https://youtube.com/watch?v=video-1",
                         title="Training Breakdown",
-                        caption_text="Training and nutrition breakdown.",
-                        top_hashtags=["hyrox", "fitness", "vienna"],
+                        caption="Training and nutrition breakdown.",
+                        hashtags=["hyrox", "fitness", "vienna"],
                         raw_payload={"source": "fixture"},
                     ),
                     CreatorContentInput(
@@ -49,8 +55,8 @@ async def test_creator_ingest_creates_records_and_scores(sqlite_session_factory)
                         content_type="video",
                         url="https://youtube.com/watch?v=video-2",
                         title="Race Prep",
-                        caption_text="Race prep for the next Hyrox event.",
-                        top_hashtags=["hyrox", "race", "nutrition"],
+                        caption="Race prep for the next Hyrox event.",
+                        hashtags=["hyrox", "race", "nutrition"],
                         raw_payload={"source": "fixture"},
                     ),
                     CreatorContentInput(
@@ -58,8 +64,8 @@ async def test_creator_ingest_creates_records_and_scores(sqlite_session_factory)
                         content_type="video",
                         url="https://youtube.com/watch?v=video-3",
                         title="Nutrition Week",
-                        caption_text="What I eat in race week.",
-                        top_hashtags=["nutrition", "fitness", "food"],
+                        caption="What I eat in race week.",
+                        hashtags=["nutrition", "fitness", "food"],
                         raw_payload={"source": "fixture"},
                     ),
                 ],
@@ -69,13 +75,16 @@ async def test_creator_ingest_creates_records_and_scores(sqlite_session_factory)
 
         creator_count = await session.scalar(select(func.count()).select_from(Creator))
         content_count = await session.scalar(select(func.count()).select_from(CreatorContent))
-        snapshot_count = await session.scalar(select(func.count()).select_from(CreatorMetricSnapshot))
+        snapshot_count = await session.scalar(
+            select(func.count()).select_from(CreatorMetricSnapshot)
+        )
 
     assert result.created is True
     assert result.content_created == 3
     assert result.content_updated == 0
     assert result.snapshot_recorded is True
-    assert result.score.commercial_readiness_score >= 60
+    assert result.score.commercial_score >= 0.6
+    assert result.score.niche_fit_score >= 0.5
     assert creator_count == 1
     assert content_count == 3
     assert snapshot_count == 1
@@ -92,11 +101,12 @@ async def test_creator_ingest_updates_existing_creator_content(sqlite_session_fa
                 handle="ingestupdate",
                 profile_url="https://youtube.com/@ingestupdate",
                 bio="Fitness creator",
-                follower_count=120000,
+                followers=120000,
+                niche_labels=["fitness"],
                 source_labels=["seed_a"],
                 metric_snapshot=CreatorMetricSnapshotPayload(
                     captured_at=datetime.now(UTC) - timedelta(days=30),
-                    follower_count=100000,
+                    followers=100000,
                     average_views_30d=9000,
                     source="fixture",
                 ),
@@ -106,8 +116,8 @@ async def test_creator_ingest_updates_existing_creator_content(sqlite_session_fa
                         content_type="video",
                         url="https://youtube.com/watch?v=video-1",
                         title="Old title",
-                        caption_text="First payload",
-                        top_hashtags=["fitness"],
+                        caption="First payload",
+                        hashtags=["fitness"],
                         raw_payload={"version": 1},
                     )
                 ],
@@ -119,11 +129,12 @@ async def test_creator_ingest_updates_existing_creator_content(sqlite_session_fa
                 handle="ingestupdate",
                 display_name="Updated Name",
                 bio="Updated fitness creator bio",
-                follower_count=135000,
+                followers=135000,
+                niche_labels=["fitness", "hyrox"],
                 source_labels=["seed_b"],
                 metric_snapshot=CreatorMetricSnapshotPayload(
                     captured_at=datetime.now(UTC),
-                    follower_count=135000,
+                    followers=135000,
                     average_views_30d=14000,
                     source="fixture",
                 ),
@@ -133,8 +144,8 @@ async def test_creator_ingest_updates_existing_creator_content(sqlite_session_fa
                         content_type="video",
                         url="https://youtube.com/watch?v=video-1",
                         title="New title",
-                        caption_text="Updated payload",
-                        top_hashtags=["fitness", "hyrox"],
+                        caption="Updated payload",
+                        hashtags=["fitness", "hyrox"],
                         raw_payload={"version": 2},
                     )
                 ],
@@ -144,7 +155,9 @@ async def test_creator_ingest_updates_existing_creator_content(sqlite_session_fa
 
         creator = await session.scalar(select(Creator).where(Creator.handle == "ingestupdate"))
         content_rows = list((await session.scalars(select(CreatorContent))).all())
-        snapshot_count = await session.scalar(select(func.count()).select_from(CreatorMetricSnapshot))
+        snapshot_count = await session.scalar(
+            select(func.count()).select_from(CreatorMetricSnapshot)
+        )
 
     assert first.created is True
     assert second.created is False

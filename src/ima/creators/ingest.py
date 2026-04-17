@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -60,11 +61,17 @@ class CreatorIngestService:
         creator.profile_url = payload.profile_url or creator.profile_url
         creator.display_name = payload.display_name or creator.display_name
         creator.bio = payload.bio or creator.bio
-        creator.follower_count = payload.follower_count or creator.follower_count
-        creator.primary_language = payload.primary_language or creator.primary_language
-        creator.niche = payload.niche or creator.niche
-        creator.sub_niches = payload.sub_niches or creator.sub_niches
-        creator.consent_status = payload.consent_status
+        creator.followers = payload.followers or creator.followers
+        creator.language = payload.language or creator.language
+        creator.geo = payload.geo or creator.geo
+        creator.niche_labels = sorted(set([*creator.niche_labels, *payload.niche_labels]))
+        creator.email = payload.email or creator.email
+        creator.email_confidence = (
+            Decimal(str(payload.email_confidence))
+            if payload.email_confidence is not None
+            else creator.email_confidence
+        )
+        creator.consent_basis = payload.consent_basis
         creator.source_labels = sorted(set([*creator.source_labels, *payload.source_labels]))
         creator.last_seen_at = datetime.now(UTC)
 
@@ -88,12 +95,19 @@ class CreatorIngestService:
 
             content_record.url = content_payload.url
             content_record.title = content_payload.title
-            content_record.caption_text = content_payload.caption_text
+            content_record.caption = content_payload.caption
             content_record.published_at = content_payload.published_at
             content_record.view_count = content_payload.view_count
             content_record.like_count = content_payload.like_count
             content_record.comment_count = content_payload.comment_count
-            content_record.top_hashtags = content_payload.top_hashtags
+            content_record.hashtags = content_payload.hashtags
+            content_record.detected_brands = content_payload.detected_brands
+            content_record.sponsor_probability = (
+                Decimal(str(content_payload.sponsor_probability))
+                if content_payload.sponsor_probability is not None
+                else None
+            )
+            content_record.raw_snapshot_uri = content_payload.raw_snapshot_uri
             content_record.raw_payload = content_payload.raw_payload
 
         snapshot_recorded = False
@@ -102,10 +116,10 @@ class CreatorIngestService:
                 CreatorGrowthSnapshotInput(
                     creator_id=str(creator.id),
                     captured_at=payload.metric_snapshot.captured_at,
-                    follower_count=(
-                        payload.metric_snapshot.follower_count
-                        if payload.metric_snapshot.follower_count is not None
-                        else payload.follower_count
+                    followers=(
+                        payload.metric_snapshot.followers
+                        if payload.metric_snapshot.followers is not None
+                        else payload.followers
                     ),
                     average_views_30d=payload.metric_snapshot.average_views_30d,
                     average_likes_30d=payload.metric_snapshot.average_likes_30d,
