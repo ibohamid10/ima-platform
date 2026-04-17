@@ -115,3 +115,9 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** HTML-Snapshots werden ueber einen separaten `EvidencePageFetcher` geholt und danach ueber denselben `EvidenceStorage`-Adapter persistiert. Der aktuelle Default ist ein HTTP-Fetcher; Browser-/Screenshot-Capture bleibt als spaeterer Adapter derselben Stufe vorgesehen.
 **Begruendung:** Das trennt Seitenbeschaffung von Artefaktpersistenz, haelt den Builder erweiterbar und vermeidet, dass spaetere Screenshot- oder Browser-Logik direkt im Builder selbst landet.
 **Verworfene Alternativen:** Direktes `httpx` im Builder ohne Abstraktion, Screenshot-Logik schon jetzt in denselben Codepfad mischen, HTML-Snapshots vorerst ganz auslassen
+
+## 2026-04-17 - Screenshots laufen ueber einen separaten Visual-Fetcher mit Playwright-Default
+**Kontext:** Fuer spaetere Operator-Review, Claim-Reproduktion und manuelle QA reichen HTML-Snapshots allein nicht immer aus. Der Builder braucht deshalb auch visuelle Artefakte, ohne dabei Browser-Logik direkt in die Claim-Erzeugung zu mischen.
+**Entscheidung:** PNG-Screenshots werden ueber einen eigenen `EvidenceVisualFetcher` geholt. Im lokalen Dev-Setup ist der Default ein Playwright-basierter Chromium-Fetcher. Die Artefakte werden unter denselben `evidence://<bucket>/<key>`-Pfaeden gespeichert wie die restlichen Rohdaten. Screenshot-Fehler blockieren den Build nicht, sondern werden als Warnung behandelt.
+**Begruendung:** Das trennt Browser-Automation sauber vom Builder, macht die Screenshot-Strecke austauschbar und verhindert, dass ein einzelner Capture-Fehler den gesamten Evidence-Build stoppt.
+**Verworfene Alternativen:** Playwright direkt im Builder, Screenshots als Pflicht-Hard-Gate ab dem ersten Prototyp, visuelle Artefakte ganz auslassen

@@ -70,3 +70,10 @@ Jeder Eintrag nutzt dieses Schema:
 **Root Cause:** Das lokale Terminal schrieb ueber eine `cp1252`-Konsole, waehrend der JSON-Output ungefilterte Unicode-Zeichen aus Live-YouTube-Captions enthielt.
 **Fix:** Der CLI-Output fuer den Evidence-Builder wird jetzt ASCII-sicher serialisiert (`ensure_ascii=True`), waehrend die eigentlichen Artefakte unveraendert im Storage liegen.
 **Prevention-Rule:** Neue CLI-Pfade immer mindestens einmal mit echten Live-Daten statt nur mit ASCII-lastigen Fixtures pruefen.
+
+## 2026-04-17 - Hintergrund-Worker blockieren auf Windows spaetere `uv sync`- und Playwright-Installationen
+**Kategorie:** Deployment
+**Symptom:** Nach der Einfuehrung der Screenshot-Strecke scheiterten `uv sync --dev` und `uv run playwright install chromium`, obwohl die Konfiguration fachlich korrekt war.
+**Root Cause:** Alte lokal gestartete Temporal-Worker liefen noch im Hintergrund und hielten `.venv\\Scripts\\ima.exe` geoeffnet. Dadurch konnte `uv` das Entry-Point-Binary nicht sauber aktualisieren.
+**Fix:** Vor Dependency-Aenderungen oder Browser-Installationen wurden die hängenden `ima`, `python`- und `uv`-Prozesse explizit beendet. Danach liefen `uv sync --dev` und die Chromium-Installation sauber durch.
+**Prevention-Rule:** Auf Windows vor jeder groesseren Environment-Aenderung zuerst pruefen, ob Hintergrund-Worker oder lang laufende CLI-Prozesse noch auf die lokale `.venv` zeigen.
