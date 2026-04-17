@@ -6,14 +6,14 @@ Letztes Update: 2026-04-17
 
 - **Phase:** 1 (Woche 2 aktiv)
 - **Aktuelle Aufgabe:** Neben dem Creator-Ingest-Workflow gibt es jetzt einen echten YouTube-Data-v3-Harvester, der einen Kanal per `channel_id` laedt, letzte Uploads in einen `HarvestedCreatorRecord` mappt und dann denselben kanonischen Ingest-Pfad wie Fixtures nutzt.
-- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator`, `ima creators import-source-batch` und `ima creators import-youtube-channel --help` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, der erste orchestrierte Creator-Flow, der fixture-basierte Source-Import und der getestete Live-YouTube-Adapter sind lokal verifiziert.
+- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator`, `ima creators import-source-batch` und `ima creators import-youtube-channel` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, der erste orchestrierte Creator-Flow, der fixture-basierte Source-Import und der Live-YouTube-Import gegen einen echten Kanal sind lokal verifiziert.
 - **Blocker:** Keine
 
 ## Naechste Tasks
 
 1. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten vor Umsetzung klaeren
-2. Den Live-YouTube-Import mit echtem `YOUTUBE_DATA_API_KEY` gegen einen realen Kanal verifizieren
-3. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
+2. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
+3. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten finalisieren
 4. Brand-Seite und Spend-Intent-Scaffold fuer Woche 3 vorbereiten
 
 ## Operativer Hinweis

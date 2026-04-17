@@ -56,3 +56,10 @@ Jeder Eintrag nutzt dieses Schema:
 **Root Cause:** Das Workflow-Modul importierte `CreatorIngestInput` aus einem Service-Modul, das transitiv SQLAlchemy-Modelle nachlud. In der Temporal-Sandbox kollidierte dieser Importpfad mit SQLAlchemys Wrapper-Logik.
 **Fix:** Workflow-Contracts wurden in `src/ima/creators/schemas.py` als sandbox-sichere Pydantic-Typen ausgegliedert. Workflows importieren nur noch diese Contracts und delegieren alle DB-Arbeit an Activities.
 **Prevention-Rule:** Temporal-Workflow-Module duerfen nur deterministische, importarme Contracts und Konstanten sehen. ORM-, Provider- und Session-Code gehoert ausschliesslich in Activities oder Services ausserhalb der Sandbox.
+
+## 2026-04-17 - Live-YouTube-Import liefert fuer grosse Kanaele frueh hohe Fraud-Risk-Scores
+**Kategorie:** DB
+**Symptom:** Der erste echte YouTube-Import gegen einen grossen Testkanal lief technisch sauber, wurde aber im heuristischen Scoring sofort als unqualifiziert mit hohem `fraud_risk_score` eingestuft.
+**Root Cause:** Die aktuelle Fraud-Heuristik interpretiert ein niedriges View-zu-Subscriber-Verhaeltnis sehr streng. Bei sehr grossen, etablierten Kanaelen oder allgemein-populistischen Content-Profilen ist diese Regel fuer Phase 1 zu grob.
+**Fix:** Noch kein Code-Fix in diesem Schritt. Das Ergebnis wurde als reales Kalibrierungssignal dokumentiert; Fraud- und Qualification-Heuristiken muessen vor breiterem Live-Harvesting mit echten Kanaelen nachgeschaerft werden.
+**Prevention-Rule:** Neue Harvest-Quellen immer mindestens einmal gegen echte Live-Daten pruefen, bevor heuristische Scores als belastbar angenommen werden.
