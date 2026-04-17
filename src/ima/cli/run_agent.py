@@ -21,6 +21,7 @@ from ima.creators.schemas import CreatorGrowthSnapshotInput, CreatorIngestInput,
 from ima.creators.scoring import CreatorScoringService
 from ima.db.models import Creator
 from ima.db.session import get_session_factory
+from ima.harvesters.pipeline import CreatorSourceImportService
 from ima.observability.langfuse_hook import LangfuseHook
 from ima.providers.llm.anthropic_adapter import AnthropicAdapter
 from ima.providers.llm.base import LLMMessage, LLMResponse
@@ -297,6 +298,43 @@ async def _ingest_creator(input_file: Path) -> None:
         service = CreatorIngestService(session)
         result = await service.ingest(payload)
         await session.commit()
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
+@creator_app.command("import-source-batch")
+def import_source_batch(
+    input_file: Path = typer.Option(..., "--input-file", exists=True, readable=True),
+    via_temporal: bool = typer.Option(True, "--via-temporal/--direct"),
+    workflow_prefix: str = typer.Option("creator-source-import", "--workflow-prefix"),
+    task_queue: str = typer.Option(CREATOR_TASK_QUEUE, "--task-queue"),
+) -> None:
+    """Import one fixture-based source batch through direct or Temporal ingest."""
+
+    asyncio.run(
+        _import_source_batch(
+            input_file=input_file,
+            via_temporal=via_temporal,
+            workflow_prefix=workflow_prefix,
+            task_queue=task_queue,
+        )
+    )
+
+
+async def _import_source_batch(
+    input_file: Path,
+    via_temporal: bool,
+    workflow_prefix: str,
+    task_queue: str,
+) -> None:
+    """Load one fixture source batch and route it into the canonical ingest path."""
+
+    service = CreatorSourceImportService()
+    result = await service.import_fixture_file(
+        input_file,
+        via_temporal=via_temporal,
+        workflow_prefix=workflow_prefix,
+        task_queue=task_queue,
+    )
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
 
 

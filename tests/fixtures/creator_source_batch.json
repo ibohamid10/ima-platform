@@ -1,0 +1,79 @@
+{
+  "source": "youtube_fixture",
+  "batch_id": "yt-fixture-batch-001",
+  "creators": [
+    {
+      "source": "youtube_fixture",
+      "platform": "youtube",
+      "handle": "fixtureharvestone",
+      "external_id": "yt-fixtureharvestone",
+      "profile_url": "https://youtube.com/@fixtureharvestone",
+      "display_name": "Fixture Harvest One",
+      "bio": "Hyrox coach and nutrition creator from Vienna.",
+      "follower_count": 215000,
+      "primary_language": "en",
+      "source_labels": ["fixture", "youtube_api_stub"],
+      "metric_snapshot": {
+        "captured_at": "2026-04-17T08:00:00+02:00",
+        "follower_count": 215000,
+        "average_views_30d": 21000,
+        "average_likes_30d": 1400,
+        "average_comments_30d": 95,
+        "engagement_rate_30d": "0.0420",
+        "source": "fixture"
+      },
+      "content_items": [
+        {
+          "platform_content_id": "yt-fixture-001",
+          "content_type": "video",
+          "url": "https://youtube.com/watch?v=yt-fixture-001",
+          "title": "Hyrox pacing week",
+          "caption_text": "How I pace race simulations before the next event.",
+          "top_hashtags": ["hyrox", "fitness", "training"],
+          "raw_payload": {"source": "fixture"}
+        },
+        {
+          "platform_content_id": "yt-fixture-002",
+          "content_type": "video",
+          "url": "https://youtube.com/watch?v=yt-fixture-002",
+          "title": "Meal prep for race week",
+          "caption_text": "Nutrition and recovery planning for competition week.",
+          "top_hashtags": ["nutrition", "fitness", "food"],
+          "raw_payload": {"source": "fixture"}
+        }
+      ]
+    },
+    {
+      "source": "youtube_fixture",
+      "platform": "youtube",
+      "handle": "fixtureharvesttwo",
+      "external_id": "yt-fixtureharvesttwo",
+      "profile_url": "https://youtube.com/@fixtureharvesttwo",
+      "display_name": "Fixture Harvest Two",
+      "bio": "SaaS builder sharing AI automation systems and weekly product teardowns.",
+      "follower_count": 142000,
+      "primary_language": "en",
+      "source_labels": ["fixture", "youtube_api_stub"],
+      "metric_snapshot": {
+        "captured_at": "2026-04-17T08:00:00+02:00",
+        "follower_count": 142000,
+        "average_views_30d": 18000,
+        "average_likes_30d": 900,
+        "average_comments_30d": 65,
+        "engagement_rate_30d": "0.0310",
+        "source": "fixture"
+      },
+      "content_items": [
+        {
+          "platform_content_id": "yt-fixture-101",
+          "content_type": "video",
+          "url": "https://youtube.com/watch?v=yt-fixture-101",
+          "title": "How I automate client onboarding",
+          "caption_text": "My AI-first operations stack for agency workflows.",
+          "top_hashtags": ["saas", "ai", "automation"],
+          "raw_payload": {"source": "fixture"}
+        }
+      ]
+    }
+  ]
+}
