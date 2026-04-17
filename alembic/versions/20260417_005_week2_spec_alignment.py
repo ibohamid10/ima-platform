@@ -62,14 +62,14 @@ def upgrade() -> None:
     op.execute("ALTER TABLE creators ADD COLUMN IF NOT EXISTS avg_views_30d BIGINT NULL;")
     op.execute("ALTER TABLE creators ADD COLUMN IF NOT EXISTS avg_views_90d BIGINT NULL;")
     op.execute(
-        "ALTER TABLE creators ADD COLUMN IF NOT EXISTS avg_engagement_30d DOUBLE PRECISION NULL;"
+        "ALTER TABLE creators ADD COLUMN IF NOT EXISTS avg_engagement_30d NUMERIC(8, 4) NULL;"
     )
     op.execute(
-        "ALTER TABLE creators ADD COLUMN IF NOT EXISTS niche_fit_score DOUBLE PRECISION NULL;"
+        "ALTER TABLE creators ADD COLUMN IF NOT EXISTS niche_fit_score NUMERIC(6, 4) NULL;"
     )
     op.execute("ALTER TABLE creators ADD COLUMN IF NOT EXISTS email VARCHAR(255) NULL;")
     op.execute(
-        "ALTER TABLE creators ADD COLUMN IF NOT EXISTS email_confidence DOUBLE PRECISION NULL;"
+        "ALTER TABLE creators ADD COLUMN IF NOT EXISTS email_confidence NUMERIC(6, 4) NULL;"
     )
 
     op.execute(
@@ -89,7 +89,7 @@ def upgrade() -> None:
         """
         UPDATE creators
         SET avg_views_30d = snapshots.average_views_30d,
-            avg_engagement_30d = snapshots.engagement_rate_30d::double precision
+            avg_engagement_30d = snapshots.engagement_rate_30d
         FROM (
             SELECT DISTINCT ON (creator_id)
                 creator_id,
@@ -105,12 +105,31 @@ def upgrade() -> None:
     op.execute(
         """
         ALTER TABLE creators
-            ALTER COLUMN growth_score TYPE DOUBLE PRECISION USING growth_score::double precision,
-            ALTER COLUMN commercial_score TYPE DOUBLE PRECISION
-                USING commercial_score::double precision,
-            ALTER COLUMN fraud_score TYPE DOUBLE PRECISION USING fraud_score::double precision,
-            ALTER COLUMN evidence_coverage_score TYPE DOUBLE PRECISION
-                USING evidence_coverage_score::double precision;
+            ALTER COLUMN growth_score TYPE NUMERIC(6, 4)
+                USING CASE
+                    WHEN growth_score IS NULL THEN NULL
+                    WHEN ABS(growth_score) > 1 THEN ROUND((growth_score::numeric / 100), 4)
+                    ELSE ROUND(growth_score::numeric, 4)
+                END,
+            ALTER COLUMN commercial_score TYPE NUMERIC(6, 4)
+                USING CASE
+                    WHEN commercial_score IS NULL THEN NULL
+                    WHEN ABS(commercial_score) > 1 THEN ROUND((commercial_score::numeric / 100), 4)
+                    ELSE ROUND(commercial_score::numeric, 4)
+                END,
+            ALTER COLUMN fraud_score TYPE NUMERIC(6, 4)
+                USING CASE
+                    WHEN fraud_score IS NULL THEN NULL
+                    WHEN ABS(fraud_score) > 1 THEN ROUND((fraud_score::numeric / 100), 4)
+                    ELSE ROUND(fraud_score::numeric, 4)
+                END,
+            ALTER COLUMN evidence_coverage_score TYPE NUMERIC(6, 4)
+                USING CASE
+                    WHEN evidence_coverage_score IS NULL THEN NULL
+                    WHEN ABS(evidence_coverage_score) > 1
+                        THEN ROUND((evidence_coverage_score::numeric / 100), 4)
+                    ELSE ROUND(evidence_coverage_score::numeric, 4)
+                END;
         """
     )
 
@@ -126,7 +145,7 @@ def upgrade() -> None:
     op.execute("ALTER TABLE creator_content ADD COLUMN IF NOT EXISTS detected_brands JSONB NULL;")
     op.execute(
         "ALTER TABLE creator_content "
-        "ADD COLUMN IF NOT EXISTS sponsor_probability DOUBLE PRECISION NULL;"
+        "ADD COLUMN IF NOT EXISTS sponsor_probability NUMERIC(6, 4) NULL;"
     )
     op.execute("ALTER TABLE creator_content ADD COLUMN IF NOT EXISTS raw_snapshot_uri TEXT NULL;")
 
@@ -139,7 +158,7 @@ def upgrade() -> None:
     op.execute("ALTER TABLE evidence_items ADD COLUMN IF NOT EXISTS entity_id UUID NULL;")
     op.execute(
         "ALTER TABLE evidence_items "
-        "ADD COLUMN IF NOT EXISTS confidence DOUBLE PRECISION NOT NULL DEFAULT 1.0;"
+        "ADD COLUMN IF NOT EXISTS confidence NUMERIC(6, 4) NOT NULL DEFAULT 1.0;"
     )
 
     op.execute(

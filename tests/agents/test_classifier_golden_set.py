@@ -8,13 +8,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-from ima.agents.classifier.contract import CLASSIFIER_CONTRACT, ClassifierInput
+from ima.agents.classifier.contract import CLASSIFIER_CONTRACT, ClassifierInput, ClassifierOutput
 from ima.agents.executor import AgentExecutor
 from ima.db.session import get_session_factory
 from ima.observability.langfuse_hook import LangfuseHook
 from ima.providers.llm.anthropic_adapter import AnthropicAdapter
 from ima.providers.llm.openai_adapter import OpenAIAdapter
-from tests.conftest import FakeLangfuseHook, RuleBasedClassifierProvider
+from tests.conftest import FakeLangfuseHook, HeuristicClassifierProvider
 
 
 def _load_cases() -> list[dict[str, object]]:
@@ -37,7 +37,7 @@ async def test_classifier_golden_set(case: dict[str, object], sqlite_session_fac
         }
         langfuse_hook = LangfuseHook()
     else:
-        providers = {"mock": RuleBasedClassifierProvider()}
+        providers = {"mock": HeuristicClassifierProvider()}
         langfuse_hook = FakeLangfuseHook()
 
     executor = AgentExecutor(
@@ -52,5 +52,16 @@ async def test_classifier_golden_set(case: dict[str, object], sqlite_session_fac
     output = await executor.run(ClassifierInput.model_validate(case["input"]))
     expected = case["expected"]
     assert output.niche == expected["niche"]
+    assert set(expected["sub_niches"]).issubset(set(output.sub_niches))
     assert output.language == expected["language"]
     assert output.brand_safety_score >= expected["brand_safety_score_min"]
+
+    if not integration_mode:
+        provider = providers["mock"]
+        assert len(provider.calls) == 1
+        call = provider.calls[0]
+        assert call["model"] == "claude-haiku-4-5-20251001"
+        assert call["response_schema"] is ClassifierOutput
+        assert call["messages"][0].role == "system"
+        assert "bestimme die wahrscheinlichste Hauptnische" in call["messages"][0].content
+        assert "Brand-Safety auf einer Skala von 0 bis 10" in call["messages"][0].content

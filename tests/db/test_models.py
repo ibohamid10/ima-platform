@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import Numeric, select
 
 from ima.db.models import (
     ConsentStatus,
@@ -10,7 +10,28 @@ from ima.db.models import (
     CreatorContent,
     CreatorContentType,
     CreatorPlatform,
+    EvidenceItem,
 )
+
+
+def test_fixed_point_score_columns_use_numeric_precision() -> None:
+    """Critical score fields should remain fixed-point numerics in the ORM."""
+
+    expected_columns = {
+        Creator.__table__.c.avg_engagement_30d: (8, 4),
+        Creator.__table__.c.growth_score: (6, 4),
+        Creator.__table__.c.niche_fit_score: (6, 4),
+        Creator.__table__.c.commercial_score: (6, 4),
+        Creator.__table__.c.fraud_score: (6, 4),
+        Creator.__table__.c.evidence_coverage_score: (6, 4),
+        Creator.__table__.c.email_confidence: (6, 4),
+        CreatorContent.__table__.c.sponsor_probability: (6, 4),
+        EvidenceItem.__table__.c.confidence: (6, 4),
+    }
+    for column, (precision, scale) in expected_columns.items():
+        assert isinstance(column.type, Numeric)
+        assert column.type.precision == precision
+        assert column.type.scale == scale
 
 
 async def test_creator_and_content_relationship(sqlite_session_factory) -> None:

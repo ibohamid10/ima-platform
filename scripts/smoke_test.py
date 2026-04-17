@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 import asyncpg
 import httpx
+from db_migrate import assert_schema_matches_models
 from db_migrate import main as migrate_main
 from pydantic import BaseModel
 from sqlalchemy import func, select
@@ -331,6 +332,9 @@ async def main() -> None:
 
         await asyncio.to_thread(migrate_main)
         print("PASS: Alembic-Migration erfolgreich")
+
+        await asyncio.to_thread(assert_schema_matches_models)
+        print("PASS: Kritische Score-Spalten stimmen mit ORM-Metadaten ueberein")
 
         await _assert_columns(
             "creators",

@@ -133,3 +133,9 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** Creator-Scoring nutzt eine zentrale `ScoringConfig`, die aus YAML geladen wird und Gewichte, Thresholds sowie die Ziel-Nische kapselt.
 **Begruendung:** Operatoren koennen Scoring-Parameter aendern, ohne Python-Code zu editieren. Gleichzeitig bleiben die Scoring-Funktionen rein und isoliert testbar.
 **Verworfene Alternativen:** Hartcodierte Werte in `scoring.py`, getrennte Einzel-Flags nur ueber Environment-Variablen, Scoring-Logik ohne explizite Konfigurationsschicht
+
+## 2026-04-17 - Fixed-Point-Scoring-Spalten bleiben kanonisch NUMERIC
+**Kontext:** Mehrere Score-, Confidence- und Engagement-Spalten werden in Services, Pydantic-Schemas und Tests als `Decimal` behandelt. Eine Alembic-Revision hatte dieselben Felder zwischenzeitlich auf `DOUBLE PRECISION` verbreitert und damit Schema-Drift zwischen Postgres und `Base.metadata.create_all()` erzeugt.
+**Entscheidung:** `growth_score`, `commercial_score`, `fraud_score`, `evidence_coverage_score`, `niche_fit_score`, `email_confidence`, `sponsor_probability`, `confidence` und `avg_engagement_30d` bleiben kanonisch `NUMERIC(6,4)` bzw. `NUMERIC(8,4)`. Die ORM-Metadaten sind fuer diese Fixed-Point-Spalten die verbindliche Typreferenz; Alembic-Migrationen muessen ueber einen Drift-Check gegen diese Metadaten gruen bleiben.
+**Begruendung:** Die Scoring-Pipeline trifft threshold-basierte Entscheidungen und vergleicht lokal wie in Tests `Decimal`-Werte. Fixed-Point-Storage vermeidet stille Rundungs- und Entscheidungsdrifts zwischen SQLite-Tests, frischen Postgres-Schemas und bereits migrierten Datenbanken.
+**Verworfene Alternativen:** ORM auf `Float`/`DOUBLE PRECISION` umstellen, gemischte Decimal-in-Tests/Floats-in-Prod-Typen, Migrationsaenderungen an Score-Spalten ohne nachgelagerten Drift-Check

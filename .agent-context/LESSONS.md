@@ -91,3 +91,17 @@ Jeder Eintrag nutzt dieses Schema:
 **Root Cause:** `scripts/smoke_test.py` lief selbst unter `asyncio.run(...)`, waehrend Alembics `env.py` online wiederum `asyncio.run(...)` fuer die Async-Engine nutzt.
 **Fix:** Der Smoke-Test startet `scripts/db_migrate.py` jetzt via `await asyncio.to_thread(...)`, damit Alembic in einem separaten Thread ausserhalb des laufenden Event-Loops ausgefuehrt wird.
 **Prevention-Rule:** Tools, die intern selbst `asyncio.run()` verwenden, nie direkt aus einem bereits laufenden Async-Loop heraus aufrufen; stattdessen in einen Thread oder Subprozess auslagern.
+
+## 2026-04-17 - Fixed-point Score-Spalten duerfen in Migrationen nicht still auf Float driften
+**Kategorie:** DB
+**Symptom:** Ein frisch migriertes Postgres-Schema hatte fuer mehrere Score- und Confidence-Spalten `DOUBLE PRECISION`, waehrend ORM, Services und SQLite-Testschema dieselben Felder als `NUMERIC(...)/Decimal` behandelten. Zusaetzlich scheiterte die Rueckkonvertierung auf `NUMERIC(6,4)`, sobald Altwerte noch im alten `0..100`-Massstab vorlagen.
+**Root Cause:** Eine Spec-Alignment-Revision hat die Typentscheidung fuer Fixed-Point-Spalten nicht an der ORM-Metadatenquelle ausgerichtet und den historischen Skalenwechsel von Prozentwerten zu `0..1`-Scores nicht explizit normalisiert.
+**Fix:** Die betroffenen Alembic-Revisionen nutzen jetzt wieder `NUMERIC(6,4)` bzw. `NUMERIC(8,4)`, eine Reparatur-Revision normalisiert Altwerte > 1 auf den kanonischen `0..1`-Pfad, und der Smoke-Test vergleicht die kritischen Postgres-Spalten direkt mit den ORM-Metadaten.
+**Prevention-Rule:** Bei scoring- oder threshold-relevanten Dezimalwerten nie implizit auf Float-Typen ausweichen; jede Typaenderung an persistierten Score-Spalten braucht einen Drift-Check gegen ORM-Metadaten und einen expliziten Plan fuer Altwerte im alten Zahlenmassstab.
+
+## 2026-04-17 - Golden-Set-Fakes duerfen nie direkt aus dem Expected-Block antworten
+**Kategorie:** Testing
+**Symptom:** Die Golden-Set-Tests fuer Classifier und Evidence-Builder konnten per Konstruktion nicht fehlschlagen, weil die Fake-Provider ihre Antwort direkt aus denselben YAML-`expected`-Feldern synthetisiert haben, gegen die spaeter asserted wurde.
+**Root Cause:** Plumbing-Fakes und Agent-Eval wurden in derselben Testschicht vermischt. Dadurch testete der Default-Pfad nur Executor-Verdrahtung, nicht Prompt, Contract oder agentisches Verhalten.
+**Fix:** Die Executor-Plumbing bleibt in `tests/agents/test_executor.py` mit generischen Fakes. Die Golden-Set-Tests nutzen jetzt eigene input-basierte Heuristik-Provider, die `expected` nicht kennen, und asserten zusaetzlich auf Prompt-Snippets sowie das beabsichtigte Default-Modell.
+**Prevention-Rule:** Golden-Set- oder Eval-Fakes duerfen niemals aus den erwarteten Zielwerten lesen. Wenn ein Test `expected`-Fixtures hat, muss die Testantwort ausschliesslich aus dem Input oder aus externen Live-Providern abgeleitet werden.

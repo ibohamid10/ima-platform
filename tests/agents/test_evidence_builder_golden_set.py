@@ -8,13 +8,17 @@ from pathlib import Path
 import pytest
 import yaml
 
-from ima.agents.evidence_builder.contract import EVIDENCE_BUILDER_CONTRACT, EvidenceBuilderInput
+from ima.agents.evidence_builder.contract import (
+    EVIDENCE_BUILDER_CONTRACT,
+    EvidenceBuilderInput,
+    EvidenceBuilderOutput,
+)
 from ima.agents.executor import AgentExecutor
 from ima.db.session import get_session_factory
 from ima.observability.langfuse_hook import LangfuseHook
 from ima.providers.llm.anthropic_adapter import AnthropicAdapter
 from ima.providers.llm.openai_adapter import OpenAIAdapter
-from tests.conftest import FakeLangfuseHook, RuleBasedEvidenceBuilderProvider
+from tests.conftest import FakeLangfuseHook, HeuristicEvidenceBuilderProvider
 
 
 def _load_cases() -> list[dict[str, object]]:
@@ -37,7 +41,7 @@ async def test_evidence_builder_golden_set(case: dict[str, object], sqlite_sessi
         }
         langfuse_hook = LangfuseHook()
     else:
-        providers = {"mock": RuleBasedEvidenceBuilderProvider()}
+        providers = {"mock": HeuristicEvidenceBuilderProvider()}
         langfuse_hook = FakeLangfuseHook()
 
     executor = AgentExecutor(
@@ -58,3 +62,19 @@ async def test_evidence_builder_golden_set(case: dict[str, object], sqlite_sessi
     assert set(expected["required_source_types"]).issubset(
         {item.source_type for item in output.evidence_items}
     )
+
+    if not integration_mode:
+        provider = providers["mock"]
+        assert len(provider.calls) == 1
+        call = provider.calls[0]
+        assert call["model"] == "claude-sonnet-4-6"
+        assert call["response_schema"] is EvidenceBuilderOutput
+        assert call["messages"][0].role == "system"
+        assert (
+            "Erfinde keine Quellen, keine Brands und keine Zahlen."
+            in call["messages"][0].content
+        )
+        assert (
+            "Gib ausschließlich eine gültige JSON-Struktur zurück."
+            in call["messages"][0].content
+        )
