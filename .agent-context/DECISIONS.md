@@ -121,3 +121,15 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** PNG-Screenshots werden ueber einen eigenen `EvidenceVisualFetcher` geholt. Im lokalen Dev-Setup ist der Default ein Playwright-basierter Chromium-Fetcher. Die Artefakte werden unter denselben `evidence://<bucket>/<key>`-Pfaeden gespeichert wie die restlichen Rohdaten. Screenshot-Fehler blockieren den Build nicht, sondern werden als Warnung behandelt.
 **Begruendung:** Das trennt Browser-Automation sauber vom Builder, macht die Screenshot-Strecke austauschbar und verhindert, dass ein einzelner Capture-Fehler den gesamten Evidence-Build stoppt.
 **Verworfene Alternativen:** Playwright direkt im Builder, Screenshots als Pflicht-Hard-Gate ab dem ersten Prototyp, visuelle Artefakte ganz auslassen
+
+## 2026-04-17 - Alembic ist das verbindliche Migration-Tool
+**Kontext:** Die Woche-2-Abnahme hat gezeigt, dass rohe SQL-Dateien ohne zentrales Migration-Tool fuer fortlaufende Schema-Angleichungen und reproduzierbare Upgrades nicht mehr ausreichen.
+**Entscheidung:** Datenbankschema-Aenderungen laufen ab jetzt ueber Alembic-Revisionen. `scripts/db_migrate.py` ist nur noch ein duennes Wrapper-Skript fuer `alembic upgrade head`.
+**Begruendung:** Alembic macht Migrationsreihenfolge, Schema-Angleichung und reproduzierbare Setups auf leeren Datenbanken nachvollziehbar. Das reduziert Drift zwischen lokaler Entwicklung, Tests und spaeterem Deployment.
+**Verworfene Alternativen:** Weiterfuehren des manuellen SQL-Systems, neue Tabellen nur per `Base.metadata.create_all`, ad-hoc SQL-Updates ohne Revisionskette
+
+## 2026-04-17 - Creator-Scoring laeuft ueber eine externe ScoringConfig
+**Kontext:** Die Woche-2-Abnahme hat kritisiert, dass Schwellwerte und Gewichtungen im Creator-Scoring als Magic Numbers im Code verteilt waren.
+**Entscheidung:** Creator-Scoring nutzt eine zentrale `ScoringConfig`, die aus YAML geladen wird und Gewichte, Thresholds sowie die Ziel-Nische kapselt.
+**Begruendung:** Operatoren koennen Scoring-Parameter aendern, ohne Python-Code zu editieren. Gleichzeitig bleiben die Scoring-Funktionen rein und isoliert testbar.
+**Verworfene Alternativen:** Hartcodierte Werte in `scoring.py`, getrennte Einzel-Flags nur ueber Environment-Variablen, Scoring-Logik ohne explizite Konfigurationsschicht

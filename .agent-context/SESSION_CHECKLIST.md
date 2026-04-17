@@ -5,6 +5,7 @@
 Jede Agent-Session endet mit diesem kurzen Review:
 
 - [ ] Ist `CURRENT_STATE.md` aktualisiert
+- [ ] Ist bei Review-, Abnahme- oder Go/No-Go-Sessions das Ergebnis mit klaren PASS/WARN/FAIL-Blockern in `CURRENT_STATE.md` gespiegelt
 - [ ] Hat die Session eine neue Entscheidung erzeugt, die in `DECISIONS.md` festgehalten werden muss
 - [ ] Hat die Session einen Fehler oder teuren Umweg sichtbar gemacht, der in `LESSONS.md` gehoert
 - [ ] Wurde eine offene Frage geklaert und deshalb aus `OPEN_QUESTIONS.md` entfernt
@@ -18,6 +19,7 @@ Jede Agent-Session endet mit diesem kurzen Review:
 - [ ] Gibt es offene Fragen, die eigentlich schon entschieden wurden
 - [ ] Gibt es Learnings aus der Woche, die nur in Chat-Verlaeufen existieren
 - [ ] Ist der Bootstrap-Pfad fuer neue Sessions noch schlank genug
+- [ ] Sind die Gate-Checks fuer `pytest`, Migrationen, Smoke-Test und Linting ausdruecklich geprueft statt nur angenommen
 
 ## Phasen-Abschluss-Review-Checkliste (1 Stunde)
 

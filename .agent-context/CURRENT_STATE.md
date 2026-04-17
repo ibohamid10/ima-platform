@@ -4,21 +4,21 @@ Letztes Update: 2026-04-17
 
 ## Stand heute
 
-- **Phase:** 1 (Woche 2 aktiv)
-- **Aktuelle Aufgabe:** Der Evidence-Builder schreibt jetzt JSON-Rohartefakte, HTML-Snapshots und PNG-Screenshots fuer Profil- und Content-Seiten auf denselben kanonischen `evidence://bucket/key`-Pfad. Damit ist die Rohdatenbasis fuer spaetere Claim-Reproduktion und visuelle Operator-Review deutlich belastbarer.
-- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator`, `ima creators import-source-batch`, `ima creators import-youtube-channel` und `ima evidence build-creator` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, `evidence_items`, der erste orchestrierte Creator-Flow, der fixture-basierte Source-Import, der Live-YouTube-Import gegen einen echten Kanal, der Live-Evidence-Build gegen diesen Kanal sowie HTML- und PNG-Snapshots fuer dessen Profil-/Content-Seiten sind lokal verifiziert.
-- **Blocker:** Keine
+- **Phase:** 1 (Woche 2 abgeschlossen, Woche 3 bereit)
+- **Aktuelle Aufgabe:** Woche-2-Nachbesserung abgeschlossen und Readiness fuer Woche 3 herstellen.
+- **Status:** Woche 2 ist jetzt formal auf Ziel-Spec nachgezogen. Alembic ist eingefuehrt, `scripts/db_migrate.py` nutzt `alembic upgrade head`, `creators` / `creator_content` / `evidence_items` sind auf das Zielschema erweitert, `niche_fit_score` und konfigurierbares Scoring sind implementiert, der Evidence-Builder folgt jetzt als echter Agent dem `AgentContract`-Pattern, der YouTube-Harvester unterstuetzt Channel-Imports plus Keyword-Discovery mit `search.list`, und `record_snapshot()` ist pro Creator/Tag idempotent. `docker compose up -d`, `uv run alembic upgrade head`, `uv run python scripts/smoke_test.py`, `uv run pytest` und `uv run ruff check` laufen lokal grün. Die Alembic-Revisionen wurden zusaetzlich auf einer frisch angelegten leeren Postgres-Testdatenbank verifiziert.
+- **Blocker:** Keine formalen Woche-2-Blocker mehr. Offene Production-Fragen bleiben ausserhalb dieser Nachbesserung, blockieren Woche 3 aber nicht.
 
 ## Naechste Tasks
 
-1. Evidence-Builder um weitere Rohartefakte wie domain-spezifische HTML-Snapshots oder spaetere OCR-faehige Ableitungen erweitern
-2. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
-3. Retention-, Verschluesselungs- und Production-Provider-Policy fuer Evidence-Artefakte finalisieren
-4. Brand-Seite und Spend-Intent-Scaffold fuer Woche 3 vorbereiten
+1. Brand-Datenmodell und erste `brands`-Migrationen fuer Woche 3 aufsetzen
+2. Spend-Intent-Signale Phase 1 als erstes Brand-Scaffold implementieren
+3. Brand-Harvester-/Enricher-Stubs analog zum Creator-Pfad anlegen
+4. Danach Matching-Grundlage vorbereiten, damit Woche 4 `/matches` auf belastbaren Daten startet
 
 ## Operativer Hinweis
 
-Die Review-UI ist weiterhin noch nicht relevant. Sie beginnt erst in Woche 4. Bis dahin erfolgt die Interaktion mit der Pipeline ueber SQL-Tools, Temporal UI, Langfuse und CLI-Skripte. Fuer Workflow-Code gilt jetzt explizit: nur sandbox-sichere Contracts in Workflows, alle DB- und Netzwerkarbeit in Activities.
+Die Review-UI ist weiterhin noch nicht relevant. Sie beginnt erst in Woche 4. Bis dahin erfolgt die Interaktion mit der Pipeline ueber SQL-Tools, Temporal UI, Langfuse und CLI-Skripte. Fuer Workflow-Code gilt weiterhin explizit: nur sandbox-sichere Contracts in Workflows, alle DB- und Netzwerkarbeit in Activities.
 
 ## Update-Format fuer kuenftige Sessions
 

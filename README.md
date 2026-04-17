@@ -8,6 +8,7 @@ Dieses Repo enthaelt das lokale Fundament fuer eine interne Influencer Marketing
 uv sync --dev
 cp .env.example .env
 docker compose up -d
+uv run alembic upgrade head
 uv run python scripts/db_migrate.py
 uv run python scripts/smoke_test.py
 uv run playwright install chromium
@@ -24,6 +25,7 @@ uv run ima run-agent classifier --input-file tests/golden_sets/classifier/exampl
 ```bash
 uv run ima creators record-snapshot --platform youtube --handle fitgrowthlocal --captured-at 2026-03-15T10:00:00+00:00 --follower-count 130000 --average-views-30d 12000
 uv run ima creators score --platform youtube --handle fitgrowthlocal
+uv run ima creators classify --platform youtube --handle fitgrowthlocal
 uv run ima creators ingest --input-file tests/fixtures/creator_ingest_example.json
 uv run ima creators import-source-batch --input-file tests/fixtures/creator_source_batch.json --direct
 ```
@@ -47,7 +49,10 @@ Vor dem ersten Live-Import `YOUTUBE_DATA_API_KEY` in `.env` setzen. Der Live-Pfa
 ```bash
 uv run ima creators import-youtube-channel --channel-id UC_x5XG1OV2P6uZZ5FSM9Ttw --direct
 uv run ima creators import-youtube-channel --channel-id UC_x5XG1OV2P6uZZ5FSM9Ttw --via-temporal
+uv run ima creators discover-youtube --keywords "hyrox training,fitness austria" --language de --min-subscribers 100000 --direct
 ```
+
+`search.list` kostet bei YouTube deutlich mehr Quota als `channels.list`, `playlistItems.list` oder `videos.list`. Deshalb bleibt `channel_id` der billigere und stabilere Primarpfad, waehrend Keyword-Discovery bewusst als gezielter Discovery-Schritt gedacht ist.
 
 ## Evidence Builder
 

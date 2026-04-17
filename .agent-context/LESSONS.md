@@ -77,3 +77,17 @@ Jeder Eintrag nutzt dieses Schema:
 **Root Cause:** Alte lokal gestartete Temporal-Worker liefen noch im Hintergrund und hielten `.venv\\Scripts\\ima.exe` geoeffnet. Dadurch konnte `uv` das Entry-Point-Binary nicht sauber aktualisieren.
 **Fix:** Vor Dependency-Aenderungen oder Browser-Installationen wurden die hängenden `ima`, `python`- und `uv`-Prozesse explizit beendet. Danach liefen `uv sync --dev` und die Chromium-Installation sauber durch.
 **Prevention-Rule:** Auf Windows vor jeder groesseren Environment-Aenderung zuerst pruefen, ob Hintergrund-Worker oder lang laufende CLI-Prozesse noch auf die lokale `.venv` zeigen.
+
+## 2026-04-17 - Alembic-Revisions duerfen mit asyncpg keine Multi-Statement-SQL-Bloecke schicken
+**Kategorie:** DB
+**Symptom:** `alembic upgrade head` scheiterte gegen Postgres trotz syntaktisch korrekter SQL-Dateien mit `cannot insert multiple commands into a prepared statement`.
+**Root Cause:** Mehrere Alembic-Revisionen haben mehrere SQL-Kommandos in einem einzigen `op.execute("""...; ...;""")` kombiniert. `asyncpg` akzeptiert das in vorbereiteten Statements nicht.
+**Fix:** Jede Alembic-Revision fuehrt jetzt einzelne `CREATE`, `ALTER`, `UPDATE` und `CREATE INDEX`-Statements getrennt aus.
+**Prevention-Rule:** In Alembic-Revisionen fuer Postgres/asyncpg nie mehrere SQL-Kommandos in einem `op.execute()`-Block kombinieren. Pro Statement genau ein `op.execute()` oder eine Alembic-Operation verwenden.
+
+## 2026-04-17 - Migrationen im Smoke-Test nie direkt im laufenden Event-Loop ausfuehren
+**Kategorie:** Testing
+**Symptom:** Der aktualisierte Woche-2-Smoke-Test brach bei der Migration mit `asyncio.run() cannot be called from a running event loop` ab.
+**Root Cause:** `scripts/smoke_test.py` lief selbst unter `asyncio.run(...)`, waehrend Alembics `env.py` online wiederum `asyncio.run(...)` fuer die Async-Engine nutzt.
+**Fix:** Der Smoke-Test startet `scripts/db_migrate.py` jetzt via `await asyncio.to_thread(...)`, damit Alembic in einem separaten Thread ausserhalb des laufenden Event-Loops ausgefuehrt wird.
+**Prevention-Rule:** Tools, die intern selbst `asyncio.run()` verwenden, nie direkt aus einem bereits laufenden Async-Loop heraus aufrufen; stattdessen in einen Thread oder Subprozess auslagern.
