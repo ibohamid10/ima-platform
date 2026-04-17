@@ -17,6 +17,7 @@ dependencies = [
   "jinja2>=3.1",
   "langfuse>=2.50",
   "openai>=1.50",
+  "playwright>=1.54",
   "pydantic>=2.6",
   "pydantic-settings>=2.0",
   "python-dotenv>=1.0",

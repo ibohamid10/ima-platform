@@ -10,7 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ima.db.models import Creator, CreatorContent, CreatorMetricSnapshot, EvidenceItem
-from ima.evidence.fetchers import EvidencePageFetcher, HttpEvidencePageFetcher
+from ima.evidence.fetchers import (
+    EvidencePageFetcher,
+    EvidenceVisualFetcher,
+    HttpEvidencePageFetcher,
+    PlaywrightScreenshotFetcher,
+)
 from ima.evidence.schemas import EvidenceBuildResult, EvidenceItemResult
 from ima.evidence.storage import EvidenceStorage, LocalEvidenceStorage
 from ima.logging import get_logger
@@ -26,12 +31,14 @@ class EvidenceBuilderService:
         session: AsyncSession,
         storage: EvidenceStorage | None = None,
         page_fetcher: EvidencePageFetcher | None = None,
+        visual_fetcher: EvidenceVisualFetcher | None = None,
     ) -> None:
         """Create the evidence builder for one async session."""
 
         self.session = session
         self.storage = storage or LocalEvidenceStorage()
         self.page_fetcher = page_fetcher or HttpEvidencePageFetcher()
+        self.visual_fetcher = visual_fetcher or PlaywrightScreenshotFetcher()
 
     async def build_creator_evidence_by_handle(
         self,
@@ -99,6 +106,12 @@ class EvidenceBuilderService:
             artifact_uris=artifact_uris,
             url=creator.profile_url,
             suffix="profile/page.html",
+        )
+        await self._store_screenshot_snapshot(
+            creator=creator,
+            artifact_uris=artifact_uris,
+            url=creator.profile_url,
+            suffix="profile/page.png",
         )
 
         if creator.bio:
@@ -214,6 +227,12 @@ class EvidenceBuilderService:
                 artifact_uris=artifact_uris,
                 url=content.url,
                 suffix=f"content/{self._content_key(content)}/page.html",
+            )
+            await self._store_screenshot_snapshot(
+                creator=creator,
+                artifact_uris=artifact_uris,
+                url=content.url,
+                suffix=f"content/{self._content_key(content)}/page.png",
             )
 
             if content.title:
@@ -370,5 +389,37 @@ class EvidenceBuilderService:
             key=self._artifact_key(creator=creator, suffix=suffix),
             payload=html,
             content_type="text/html",
+        )
+        artifact_uris.append(artifact.source_uri)
+
+    async def _store_screenshot_snapshot(
+        self,
+        *,
+        creator: Creator,
+        artifact_uris: list[str],
+        url: str | None,
+        suffix: str,
+    ) -> None:
+        """Capture and persist one screenshot snapshot when a source URL is available."""
+
+        if not url:
+            return
+
+        try:
+            screenshot_bytes = await self.visual_fetcher.capture_png(url)
+        except RuntimeError as exc:
+            logger.warning(
+                "evidence_screenshot_snapshot_failed",
+                creator_id=str(creator.id),
+                handle=creator.handle,
+                url=url,
+                error_message=str(exc),
+            )
+            return
+
+        artifact = await self.storage.put_bytes(
+            key=self._artifact_key(creator=creator, suffix=suffix),
+            payload=screenshot_bytes,
+            content_type="image/png",
         )
         artifact_uris.append(artifact.source_uri)

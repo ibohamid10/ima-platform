@@ -21,6 +21,9 @@ class EvidenceStorage(Protocol):
     async def put_text(self, key: str, payload: str, content_type: str) -> StoredArtifact:
         """Persist one text artifact and return its storage metadata."""
 
+    async def put_bytes(self, key: str, payload: bytes, content_type: str) -> StoredArtifact:
+        """Persist one binary artifact and return its storage metadata."""
+
 
 class LocalEvidenceStorage:
     """Local filesystem-backed adapter for evidence artifacts during development."""
@@ -49,6 +52,22 @@ class LocalEvidenceStorage:
             source_uri=f"evidence://{self.bucket}/{key}",
             content_type=content_type,
             byte_size=len(payload.encode("utf-8")),
+            sha256=digest,
+            local_path=str(target_path.resolve()),
+        )
+
+    async def put_bytes(self, key: str, payload: bytes, content_type: str) -> StoredArtifact:
+        """Write one binary artifact under the configured local evidence root."""
+
+        target_path = self.root / key
+        await asyncio.to_thread(target_path.parent.mkdir, parents=True, exist_ok=True)
+        await asyncio.to_thread(target_path.write_bytes, payload)
+        digest = hashlib.sha256(payload).hexdigest()
+        return StoredArtifact(
+            storage_key=key,
+            source_uri=f"evidence://{self.bucket}/{key}",
+            content_type=content_type,
+            byte_size=len(payload),
             sha256=digest,
             local_path=str(target_path.resolve()),
         )

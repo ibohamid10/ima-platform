@@ -24,6 +24,15 @@ class FakeEvidencePageFetcher:
         return f"<html><body>{url}</body></html>"
 
 
+class FakeEvidenceVisualFetcher:
+    """Deterministic PNG fetcher for evidence screenshot tests."""
+
+    async def capture_png(self, url: str) -> bytes:
+        """Return predictable PNG-like bytes for the requested URL."""
+
+        return f"png:{url}".encode("utf-8")
+
+
 async def test_evidence_builder_persists_items_and_artifacts(
     sqlite_session_factory,
     tmp_path: Path,
@@ -82,6 +91,7 @@ async def test_evidence_builder_persists_items_and_artifacts(
             session,
             storage=LocalEvidenceStorage(root=evidence_root, bucket="test-evidence"),
             page_fetcher=FakeEvidencePageFetcher(),
+            visual_fetcher=FakeEvidenceVisualFetcher(),
         )
         result = await builder.build_creator_evidence_by_handle(
             platform="youtube",
@@ -92,11 +102,12 @@ async def test_evidence_builder_persists_items_and_artifacts(
         stored_items = list((await session.scalars(select(EvidenceItem))).all())
 
     assert result.evidence_count == 7
-    assert result.artifact_count == 7
+    assert result.artifact_count == 10
     assert evidence_count == 7
     assert all(item.source_uri for item in stored_items)
     assert (evidence_root / "creators" / "youtube" / "evidencefresh" / "profile" / "current.json").exists()
     assert (evidence_root / "creators" / "youtube" / "evidencefresh" / "profile" / "page.html").exists()
+    assert (evidence_root / "creators" / "youtube" / "evidencefresh" / "profile" / "page.png").exists()
     assert result.artifact_uris[0].startswith("evidence://test-evidence/")
 
 
@@ -142,6 +153,7 @@ async def test_evidence_builder_is_idempotent_on_source_keys(
             session,
             storage=storage,
             page_fetcher=FakeEvidencePageFetcher(),
+            visual_fetcher=FakeEvidenceVisualFetcher(),
         )
         first = await builder.build_creator_evidence_by_handle(platform="youtube", handle="evidenceupdate")
         second = await builder.build_creator_evidence_by_handle(platform="youtube", handle="evidenceupdate")

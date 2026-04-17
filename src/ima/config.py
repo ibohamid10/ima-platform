@@ -48,6 +48,18 @@ class Settings(BaseSettings):
         default="IMA-EvidenceBuilder/0.1 (+https://github.com/ibohamid10/ima-platform)",
         alias="EVIDENCE_FETCH_USER_AGENT",
     )
+    evidence_screenshot_timeout_seconds: float = Field(
+        default=20.0,
+        alias="EVIDENCE_SCREENSHOT_TIMEOUT_SECONDS",
+    )
+    evidence_screenshot_viewport_width: int = Field(
+        default=1440,
+        alias="EVIDENCE_SCREENSHOT_VIEWPORT_WIDTH",
+    )
+    evidence_screenshot_viewport_height: int = Field(
+        default=1024,
+        alias="EVIDENCE_SCREENSHOT_VIEWPORT_HEIGHT",
+    )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_format: str = Field(default="dev", alias="LOG_FORMAT")
     llm_daily_budget_usd: float = Field(default=20.0, alias="LLM_DAILY_BUDGET_USD")
