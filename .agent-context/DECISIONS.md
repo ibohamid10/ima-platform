@@ -85,3 +85,9 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** Growth wird ueber eine eigene Tabelle `creator_metric_snapshots` modelliert. Der erste Week-2-Scoring-Pfad liest mehrere Snapshots und berechnet daraus `growth_score`, statt nur den aktuellen `follower_count` in `creators` zu interpretieren.
 **Begruendung:** Das passt zur Architekturregel "Trajectory nicht Absolutzahl", ermoeglicht spaetere Re-Scorings ohne Datenverlust und entkoppelt Rohmetriken von abgeleiteten Scores.
 **Verworfene Alternativen:** Growth nur als direkt ueberschriebener Wert in `creators`, Follower-Deltas ohne historischen Snapshot-Verlauf, reine Absolutzahl ohne Verlauf
+
+## 2026-04-16 - Temporal-Workflows importieren nur sandbox-sichere Contracts
+**Kontext:** Der erste orchestrierte Creator-Ingest-Flow fuehrt Temporal als echten Runtime-Pfad ein. Workflow-Module werden in der Temporal-Sandbox geladen und duerfen keine DB- oder Service-Imports mit Seiteneffekten nachziehen.
+**Entscheidung:** Workflow-Payloads und Workflow-Result-Typen leben in reinen Pydantic-Schema-Modulen ohne ORM- oder Provider-Abhaengigkeiten. Alle DB- und I/O-Arbeit bleibt in Activities oder Services ausserhalb des Workflow-Moduls.
+**Begruendung:** Das haelt Workflows deterministisch, verhindert Sandbox-Importfehler und etabliert ein belastbares Muster fuer alle spaeteren Temporal-Flows.
+**Verworfene Alternativen:** Workflow-Module importieren direkt Service-Module mit SQLAlchemy-Abhaengigkeiten, Workflow und Activity teilen sich ein einziges I/O-lastiges Modul

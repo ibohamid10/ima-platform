@@ -49,3 +49,10 @@ Jeder Eintrag nutzt dieses Schema:
 **Root Cause:** Beim Content-Upsert wurde `creator_id` als String durchgereicht, obwohl die ORM-Spalte als UUID typisiert ist. Postgres war tolerant genug, SQLite nicht.
 **Fix:** Die Ingest-Logik nutzt fuer UUID-vergleichende Queries jetzt durchgehend echte `UUID`-Objekte.
 **Prevention-Rule:** Bei Cross-DB-Tests keine stillschweigende String-zu-UUID-Konvertierung erwarten; typisierte IDs im Python-Code immer im nativen Typ halten.
+
+## 2026-04-16 - Temporal-Workflow-Sandbox darf keine ORM-lastigen Service-Module importieren
+**Kategorie:** Deployment
+**Symptom:** Der erste lokale Temporal-Worker startete nicht und brach schon bei der Workflow-Validierung mit `TypeError: __annotations__ must be set to a dict object` ab.
+**Root Cause:** Das Workflow-Modul importierte `CreatorIngestInput` aus einem Service-Modul, das transitiv SQLAlchemy-Modelle nachlud. In der Temporal-Sandbox kollidierte dieser Importpfad mit SQLAlchemys Wrapper-Logik.
+**Fix:** Workflow-Contracts wurden in `src/ima/creators/schemas.py` als sandbox-sichere Pydantic-Typen ausgegliedert. Workflows importieren nur noch diese Contracts und delegieren alle DB-Arbeit an Activities.
+**Prevention-Rule:** Temporal-Workflow-Module duerfen nur deterministische, importarme Contracts und Konstanten sehen. ORM-, Provider- und Session-Code gehoert ausschliesslich in Activities oder Services ausserhalb der Sandbox.

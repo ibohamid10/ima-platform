@@ -1,6 +1,6 @@
-# IMA Platform - Woche 1 Fundament
+# IMA Platform - Lokales Fundament
 
-Dieses Repo enthaelt das technische Fundament fuer eine interne Influencer Marketing Agency als headless Pipeline fuer einen Solo-Owner. Der tiefere Produkt- und Architekturkontext lebt in [.agent-context/PROJECT.md](/Users/hamidibr/Desktop/test/ima-platform/.agent-context/PROJECT.md) und den weiteren Dateien unter `.agent-context/`.
+Dieses Repo enthaelt das lokale Fundament fuer eine interne Influencer Marketing Agency als headless Pipeline fuer einen Solo-Owner. Neben dem Woche-1-Basisstack gibt es jetzt auch erste Creator-Ingest-, Growth-Tracking- und Temporal-Orchestrierungsbausteine. Der tiefere Produkt- und Architekturkontext lebt in [.agent-context/PROJECT.md](/Users/hamidibr/Desktop/test/ima-platform/.agent-context/PROJECT.md) und den weiteren Dateien unter `.agent-context/`.
 
 ## Setup
 
@@ -25,6 +25,15 @@ uv run ima creators record-snapshot --platform youtube --handle fitgrowthlocal -
 uv run ima creators score --platform youtube --handle fitgrowthlocal
 uv run ima creators ingest --input-file tests/fixtures/creator_ingest_example.json
 ```
+
+## Erste Temporal-Orchestrierung
+
+```bash
+uv run ima temporal run-creator-worker
+uv run ima temporal ingest-creator --input-file tests/fixtures/creator_ingest_temporal_run.json --workflow-id creator-ingest-local-001
+```
+
+Der Workflow delegiert bewusst alle DB- und I/O-Arbeit an Activities. Die Workflow-Payloads leben in `src/ima/creators/schemas.py`, damit die Temporal-Sandbox keine ORM- oder Service-Module importieren muss.
 
 ## Tests
 
