@@ -109,3 +109,9 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** Der Builder schreibt im Dev-Setup ueber eine `EvidenceStorage`-Abstraktion nach `data/evidence/`, verwendet aber bereits kanonische `source_uri` im Format `evidence://<bucket>/<key>`. Der lokale Adapter ist nur die erste Backend-Implementation hinter dieser URI-Grenze.
 **Begruendung:** Das entblockt die Evidence-Implementierung jetzt, ohne spaeteren Lock-in auf lokale Dateipfade zu erzeugen. Gleichzeitig bleiben Claims, Evidence-IDs und Builder-Logik provider-neutral.
 **Verworfene Alternativen:** Direkte lokale Dateipfade als `source_uri`, Builder ohne persistente Rohartefakte, sofortige harte Festlegung auf einen einzelnen Cloud-Provider vor dem ersten Builder-Prototyp
+
+## 2026-04-17 - HTML-Snapshots laufen ueber eine eigene Fetcher-Schicht vor dem Storage-Adapter
+**Kontext:** Der Evidence-Builder soll Rohseiteninhalte sichern, aber Screenshots, Headless-Browser und reine HTTP-HTML-Fetches sind unterschiedliche Betriebsmodi.
+**Entscheidung:** HTML-Snapshots werden ueber einen separaten `EvidencePageFetcher` geholt und danach ueber denselben `EvidenceStorage`-Adapter persistiert. Der aktuelle Default ist ein HTTP-Fetcher; Browser-/Screenshot-Capture bleibt als spaeterer Adapter derselben Stufe vorgesehen.
+**Begruendung:** Das trennt Seitenbeschaffung von Artefaktpersistenz, haelt den Builder erweiterbar und vermeidet, dass spaetere Screenshot- oder Browser-Logik direkt im Builder selbst landet.
+**Verworfene Alternativen:** Direktes `httpx` im Builder ohne Abstraktion, Screenshot-Logik schon jetzt in denselben Codepfad mischen, HTML-Snapshots vorerst ganz auslassen

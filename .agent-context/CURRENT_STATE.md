@@ -5,13 +5,13 @@ Letztes Update: 2026-04-17
 ## Stand heute
 
 - **Phase:** 1 (Woche 2 aktiv)
-- **Aktuelle Aufgabe:** Der Evidence-Builder steht jetzt als erstes echtes Fundament fuer `evidence_items`. Er schreibt lokale Rohartefakte ueber eine objekt-storage-artige Abstraktion nach `data/evidence/` und erzeugt kanonische `source_uri` im Format `evidence://bucket/key`.
-- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator`, `ima creators import-source-batch`, `ima creators import-youtube-channel` und `ima evidence build-creator` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, `evidence_items`, der erste orchestrierte Creator-Flow, der fixture-basierte Source-Import, der Live-YouTube-Import gegen einen echten Kanal und der Live-Evidence-Build gegen diesen Kanal sind lokal verifiziert.
+- **Aktuelle Aufgabe:** Der Evidence-Builder schreibt jetzt nicht nur JSON-Rohartefakte, sondern auch HTML-Snapshots fuer Profil- und Content-Seiten auf denselben kanonischen `evidence://bucket/key`-Pfad. Damit ist die Rohdatenbasis fuer spaetere Screenshots und staerkere Claim-Reproduktion vorbereitet.
+- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator`, `ima creators import-source-batch`, `ima creators import-youtube-channel` und `ima evidence build-creator` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, `evidence_items`, der erste orchestrierte Creator-Flow, der fixture-basierte Source-Import, der Live-YouTube-Import gegen einen echten Kanal, der Live-Evidence-Build gegen diesen Kanal und HTML-Snapshots fuer dessen Profil-/Content-Seiten sind lokal verifiziert.
 - **Blocker:** Keine
 
 ## Naechste Tasks
 
-1. Evidence-Builder um HTML-Snapshots, Screenshots und weitere Rohartefakte erweitern
+1. Evidence-Builder um Screenshots und weitere Rohartefakte erweitern
 2. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
 3. Retention-, Verschluesselungs- und Production-Provider-Policy fuer Evidence-Artefakte finalisieren
 4. Brand-Seite und Spend-Intent-Scaffold fuer Woche 3 vorbereiten

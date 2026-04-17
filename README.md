@@ -50,7 +50,7 @@ uv run ima creators import-youtube-channel --channel-id UC_x5XG1OV2P6uZZ5FSM9Ttw
 
 ## Evidence Builder
 
-Der Evidence-Builder schreibt Rohartefakte im Dev-Setup ueber eine objekt-storage-artige Abstraktion nach `data/evidence/` und erzeugt dazu persistente `evidence_items` in der Datenbank. `source_uri` nutzt bereits das kanonische Format `evidence://<bucket>/<key>`, damit der spaetere Wechsel auf R2 oder S3 keinen Builder-Refactor braucht.
+Der Evidence-Builder schreibt Rohartefakte im Dev-Setup ueber eine objekt-storage-artige Abstraktion nach `data/evidence/` und erzeugt dazu persistente `evidence_items` in der Datenbank. `source_uri` nutzt bereits das kanonische Format `evidence://<bucket>/<key>`, damit der spaetere Wechsel auf R2 oder S3 keinen Builder-Refactor braucht. Neben JSON-Artefakten werden jetzt auch HTML-Snapshots fuer Profil- und Content-Seiten gespeichert, wenn eine URL verfuegbar ist.
 
 ```bash
 uv run ima evidence build-creator --platform youtube --handle googledevelopers
