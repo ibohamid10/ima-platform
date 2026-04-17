@@ -226,8 +226,12 @@ def _build_providers() -> dict[str, object]:
     return providers
 
 
-async def _assert_columns(table_name: str, expected_columns: set[str]) -> None:
-    """Validate that a table exists and exposes the expected columns."""
+async def _assert_columns(
+    table_name: str,
+    expected_columns: set[str],
+    forbidden_columns: set[str] | None = None,
+) -> None:
+    """Validate that a table exists, exposes expected columns, and omits forbidden ones."""
 
     connection = await asyncpg.connect(settings.database_url.replace("+asyncpg", ""))
     try:
@@ -246,6 +250,10 @@ async def _assert_columns(table_name: str, expected_columns: set[str]) -> None:
     missing = expected_columns - actual_columns
     if missing:
         raise RuntimeError(f"{table_name} fehlt Spalten: {sorted(missing)}")
+    forbidden = forbidden_columns or set()
+    unexpected = forbidden & actual_columns
+    if unexpected:
+        raise RuntimeError(f"{table_name} enthaelt Legacy-Spalten: {sorted(unexpected)}")
 
 
 async def run_creator_week2_smoke() -> None:
@@ -347,6 +355,7 @@ async def main() -> None:
                 "consent_basis",
                 "last_seen_at",
             },
+            {"niche", "sub_niches"},
         )
         print("PASS: creators-Schema validiert")
 
@@ -381,6 +390,7 @@ async def main() -> None:
                 "confidence",
                 "created_at",
             },
+            {"evidence_type"},
         )
         print("PASS: evidence_items-Schema validiert")
 

@@ -26,6 +26,7 @@ Jede Agent-Session endet mit diesem kurzen Review:
 - [ ] Wurden die Phasen-Ziele aus `PROJECT.md` tatsaechlich erreicht
 - [ ] Welche Entscheidungen haben sich bewaehrt und welche brauchen Nachschaerfung
 - [ ] Welche Architekturteile erzeugen unerwartete Komplexitaet
+- [ ] Gibt es temporaere Legacy-Spalten oder Kompatibilitaetsfelder, die per Alembic bereinigt werden muessen
 - [ ] Welche Fehler haben sich wiederholt und was fehlt als Prevention-Rule
 - [ ] Welche Dokumente koennen gekuerzt, archiviert oder neu strukturiert werden
 - [ ] Ist `CURRENT_STATE.md` sauber auf den Start der naechsten Phase ausgerichtet

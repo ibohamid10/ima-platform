@@ -319,7 +319,6 @@ class EvidenceBuilderService:
                 content_id=lookup.get("content_id"),
                 snapshot_id=lookup.get("snapshot_id"),
                 source_key=source_key,
-                evidence_type=source_type,
                 source_type=source_type,
                 claim_text=claim_text,
                 source_uri=source_uri,
@@ -335,7 +334,6 @@ class EvidenceBuilderService:
             evidence_item.creator_id = creator.id
             evidence_item.content_id = lookup.get("content_id")
             evidence_item.snapshot_id = lookup.get("snapshot_id")
-            evidence_item.evidence_type = source_type
             evidence_item.source_type = source_type
             evidence_item.claim_text = claim_text
             evidence_item.source_uri = source_uri

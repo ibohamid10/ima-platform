@@ -5,9 +5,9 @@ Letztes Update: 2026-04-17
 ## Stand heute
 
 - **Phase:** 1 (Woche 2 abgeschlossen, Woche 3 bereit)
-- **Aktuelle Aufgabe:** Woche-2-Nachbesserung abgeschlossen und Readiness fuer Woche 3 herstellen.
-- **Status:** Woche 2 ist jetzt formal auf Ziel-Spec nachgezogen. Alembic ist eingefuehrt, `scripts/db_migrate.py` nutzt `alembic upgrade head`, `creators` / `creator_content` / `evidence_items` sind auf das Zielschema erweitert, `niche_fit_score` und konfigurierbares Scoring sind implementiert, der Evidence-Builder folgt jetzt als echter Agent dem `AgentContract`-Pattern, der YouTube-Harvester unterstuetzt Channel-Imports plus Keyword-Discovery mit `search.list`, und `record_snapshot()` ist pro Creator/Tag idempotent. `docker compose up -d`, `uv run alembic upgrade head`, `uv run python scripts/smoke_test.py`, `uv run pytest` und `uv run ruff check` laufen lokal grün. Die Alembic-Revisionen wurden zusaetzlich auf einer frisch angelegten leeren Postgres-Testdatenbank verifiziert.
-- **Blocker:** Keine formalen Woche-2-Blocker mehr. Offene Production-Fragen bleiben ausserhalb dieser Nachbesserung, blockieren Woche 3 aber nicht.
+- **Aktuelle Aufgabe:** Woche-2-Abnahme nach der Nachbesserung ist abgeschlossen; Fokus kann auf Woche 3 (Brand-Seite) wechseln.
+- **Status:** Der formale Woche-2-Abnahme-Check ist jetzt `GO` fuer Woche 3. Alembic ist eingefuehrt, `scripts/db_migrate.py` nutzt `alembic upgrade head`, `creators` / `creator_content` / `evidence_items` sind auf das Zielschema erweitert, `niche_fit_score` und konfigurierbares Scoring sind implementiert, der Evidence-Builder folgt als echter Agent dem `AgentContract`-Pattern, der YouTube-Harvester unterstuetzt Channel-Imports plus Keyword-Discovery mit `search.list`, `record_snapshot()` ist pro Creator/Tag idempotent, und die Woche-2-Legacy-Spalten wurden per Alembic wieder aus dem kanonischen Schema entfernt. `docker compose up -d`, `uv run alembic upgrade head`, `uv run python scripts/smoke_test.py`, `uv run pytest` und `uv run ruff check` laufen lokal grün. Die Alembic-Revisionen wurden zusaetzlich auf einer frisch angelegten leeren Postgres-Testdatenbank verifiziert.
+- **Blocker:** Keine formalen Woche-2-Blocker mehr.
 
 ## Naechste Tasks
 

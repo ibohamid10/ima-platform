@@ -247,7 +247,6 @@ class EvidenceItem(Base):
         Index("ix_evidence_items_creator_id", "creator_id"),
         Index("ix_evidence_items_content_id", "content_id"),
         Index("ix_evidence_items_snapshot_id", "snapshot_id"),
-        Index("ix_evidence_items_evidence_type", "evidence_type"),
     )
 
     id: Mapped[UUID] = mapped_column(SAUuid, primary_key=True, default=uuid4)
@@ -269,7 +268,6 @@ class EvidenceItem(Base):
         nullable=True,
     )
     source_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    evidence_type: Mapped[str] = mapped_column(String(64), nullable=False)
     source_type: Mapped[str] = mapped_column(String(64), nullable=False)
     claim_text: Mapped[str] = mapped_column(Text, nullable=False)
     source_uri: Mapped[str] = mapped_column(Text, nullable=False)
