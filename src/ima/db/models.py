@@ -214,3 +214,45 @@ class CreatorMetricSnapshot(Base):
     )
 
     creator: Mapped[Creator] = relationship(back_populates="metric_snapshots", lazy="selectin")
+
+
+class EvidenceItem(Base):
+    """Persisted evidence coverage entry tied to creator data and stored artifacts."""
+
+    __tablename__ = "evidence_items"
+    __table_args__ = (
+        Index("ix_evidence_items_creator_id", "creator_id"),
+        Index("ix_evidence_items_content_id", "content_id"),
+        Index("ix_evidence_items_snapshot_id", "snapshot_id"),
+        Index("ix_evidence_items_evidence_type", "evidence_type"),
+    )
+
+    id: Mapped[UUID] = mapped_column(SAUuid, primary_key=True, default=uuid4)
+    creator_id: Mapped[UUID] = mapped_column(
+        SAUuid,
+        ForeignKey("creators.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    content_id: Mapped[UUID | None] = mapped_column(
+        SAUuid,
+        ForeignKey("creator_content.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    snapshot_id: Mapped[UUID | None] = mapped_column(
+        SAUuid,
+        ForeignKey("creator_metric_snapshots.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    source_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    evidence_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    claim_text: Mapped[str] = mapped_column(Text, nullable=False)
+    source_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    artifact_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
+    snippet_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict[str, object]] = mapped_column(JSONType, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )

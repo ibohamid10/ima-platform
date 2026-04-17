@@ -31,8 +31,8 @@ class YouTubeDataAPIHarvester:
     ) -> None:
         """Create the harvester with configurable API credentials and endpoint."""
 
-        self.api_key = api_key or settings.youtube_data_api_key
-        self.base_url = base_url or settings.youtube_data_api_base_url
+        self.api_key = api_key if api_key is not None else settings.youtube_data_api_key
+        self.base_url = base_url if base_url is not None else settings.youtube_data_api_base_url
         self.timeout_seconds = timeout_seconds
 
     async def harvest_channel(self, request: YouTubeChannelHarvestRequest) -> HarvestedCreatorRecord:

@@ -21,6 +21,7 @@ from ima.creators.schemas import CreatorGrowthSnapshotInput, CreatorIngestInput,
 from ima.creators.scoring import CreatorScoringService
 from ima.db.models import Creator
 from ima.db.session import get_session_factory
+from ima.evidence.builder import EvidenceBuilderService
 from ima.harvesters.pipeline import CreatorSourceImportService
 from ima.harvesters.schemas import YouTubeChannelHarvestRequest
 from ima.harvesters.youtube_data_api import YouTubeDataAPIHarvester
@@ -35,9 +36,11 @@ from ima.temporal.worker import run_creator_worker
 app = typer.Typer(help="CLI for local IMA agent execution.")
 run_agent_app = typer.Typer(help="Run a specific agent contract.")
 creator_app = typer.Typer(help="Creator growth tracking and scoring tools.")
+evidence_app = typer.Typer(help="Evidence building and evidence storage tools.")
 temporal_app = typer.Typer(help="Temporal worker and workflow tools.")
 app.add_typer(run_agent_app, name="run-agent")
 app.add_typer(creator_app, name="creators")
+app.add_typer(evidence_app, name="evidence")
 app.add_typer(temporal_app, name="temporal")
 
 
@@ -385,6 +388,26 @@ async def _import_youtube_channel(
         task_queue=task_queue,
     )
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
+@evidence_app.command("build-creator")
+def build_creator_evidence(
+    handle: str = typer.Option(..., "--handle"),
+    platform: str = typer.Option(..., "--platform"),
+) -> None:
+    """Build evidence artifacts and evidence_items for one creator."""
+
+    asyncio.run(_build_creator_evidence(handle=handle, platform=platform))
+
+
+async def _build_creator_evidence(handle: str, platform: str) -> None:
+    """Execute the local evidence builder for one creator handle."""
+
+    async with get_session_factory()() as session:
+        service = EvidenceBuilderService(session)
+        result = await service.build_creator_evidence_by_handle(platform=platform, handle=handle)
+        await session.commit()
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=True))
 
 
 @temporal_app.command("run-creator-worker")

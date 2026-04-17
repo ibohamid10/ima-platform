@@ -37,6 +37,9 @@ class Settings(BaseSettings):
         default="https://www.googleapis.com/youtube/v3",
         alias="YOUTUBE_DATA_API_BASE_URL",
     )
+    evidence_storage_backend: str = Field(default="local", alias="EVIDENCE_STORAGE_BACKEND")
+    evidence_storage_root: str = Field(default="data/evidence", alias="EVIDENCE_STORAGE_ROOT")
+    evidence_storage_bucket: str = Field(default="ima-evidence-dev", alias="EVIDENCE_STORAGE_BUCKET")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_format: str = Field(default="dev", alias="LOG_FORMAT")
     llm_daily_budget_usd: float = Field(default=20.0, alias="LLM_DAILY_BUDGET_USD")
@@ -76,6 +79,15 @@ class Settings(BaseSettings):
 
         if value not in {"dev", "json"}:
             raise ValueError("LOG_FORMAT muss 'dev' oder 'json' sein.")
+        return value
+
+    @field_validator("evidence_storage_backend")
+    @classmethod
+    def validate_evidence_storage_backend(cls, value: str) -> str:
+        """Restrict evidence storage backends to supported development values."""
+
+        if value not in {"local"}:
+            raise ValueError("EVIDENCE_STORAGE_BACKEND muss aktuell 'local' sein.")
         return value
 
     @property
