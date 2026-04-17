@@ -39,6 +39,15 @@ Der Workflow delegiert bewusst alle DB- und I/O-Arbeit an Activities. Die Workfl
 
 Der fixture-basierte Harvester-/Enricher-Stub lebt unter `src/ima/harvesters/`. Er normalisiert Rohdaten zuerst auf `CreatorIngestInput` und nutzt danach denselben Ingest-Pfad wie manuelle Creator-Fixtures. Das ist die Bruecke fuer spaetere echte YouTube-Data-v3-Integrationen.
 
+## Echter YouTube-Import
+
+Vor dem ersten Live-Import `YOUTUBE_DATA_API_KEY` in `.env` setzen. Der Live-Pfad nutzt bewusst `channel_id` als stabile Identitaet und nicht eine fuzzy Handle-Suche.
+
+```bash
+uv run ima creators import-youtube-channel --channel-id UC_x5XG1OV2P6uZZ5FSM9Ttw --direct
+uv run ima creators import-youtube-channel --channel-id UC_x5XG1OV2P6uZZ5FSM9Ttw --via-temporal
+```
+
 ## Tests
 
 ```bash

@@ -5,14 +5,14 @@ Letztes Update: 2026-04-17
 ## Stand heute
 
 - **Phase:** 1 (Woche 2 aktiv)
-- **Aktuelle Aufgabe:** Neben dem Creator-Ingest-Workflow gibt es jetzt einen fixture-basierten Harvester-/Enricher-Stub, der Creator-Quellen auf `CreatorIngestInput` normalisiert und dann direkt oder via Temporal in denselben Ingest-Pfad schickt.
-- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator` und `ima creators import-source-batch` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, der erste orchestrierte Creator-Flow und ein fixture-basierter Source-Import sind lokal verifiziert.
+- **Aktuelle Aufgabe:** Neben dem Creator-Ingest-Workflow gibt es jetzt einen echten YouTube-Data-v3-Harvester, der einen Kanal per `channel_id` laedt, letzte Uploads in einen `HarvestedCreatorRecord` mappt und dann denselben kanonischen Ingest-Pfad wie Fixtures nutzt.
+- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator`, `ima creators import-source-batch` und `ima creators import-youtube-channel --help` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, der erste orchestrierte Creator-Flow, der fixture-basierte Source-Import und der getestete Live-YouTube-Adapter sind lokal verifiziert.
 - **Blocker:** Keine
 
 ## Naechste Tasks
 
 1. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten vor Umsetzung klaeren
-2. Den fixture-basierten Source-Import durch einen echten YouTube-Data-v3-Harvester ersetzen, sobald API-Key und Quoten-Setup lokal hinterlegt sind
+2. Den Live-YouTube-Import mit echtem `YOUTUBE_DATA_API_KEY` gegen einen realen Kanal verifizieren
 3. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
 4. Brand-Seite und Spend-Intent-Scaffold fuer Woche 3 vorbereiten
 

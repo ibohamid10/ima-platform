@@ -97,3 +97,9 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** Harvester- und Enricher-Stubs liefern zuerst einen `CreatorIngestInput`. Persistenz, Snapshot-Schreiben und Re-Scoring laufen danach ausschliesslich ueber den bestehenden Creator-Ingest-Service oder den `creator-ingest-workflow`.
 **Begruendung:** Das haelt die Datenbank-Grenze zentral, reduziert source-spezifische Logik im Fachcode und ermoeglicht spaetere Source-Swaps ohne Refactor der Persistenzschicht.
 **Verworfene Alternativen:** Jeder Harvester schreibt direkt in `creators` und `creator_content`, source-spezifische DB-Pfade pro Plattform, separater Workflow pro Datenquelle mit eigener Persistenzlogik
+
+## 2026-04-17 - YouTube-Live-Import startet mit stabiler channel_id statt Handle-Suche
+**Kontext:** Der erste echte YouTube-Data-v3-Import braucht einen reproduzierbaren Identifikator fuer Kanaele. Handles, Suchbegriffe und benutzerfreundliche URLs sind praktischer fuer Menschen, aber nicht die stabilste API-Grenze.
+**Entscheidung:** Der Live-Harvester erwartet zunaechst `channel_id` als Eingabe. Darauf baut er `channels.list`, die Uploads-Playlist und `videos.list` auf. Eine spaetere Komfortauflosung von Handle oder URL bleibt optional.
+**Begruendung:** `channel_id` ist stabil, API-first und reduziert Fehlzuordnungen durch fuzzy Suche. Das passt besser zum Ziel eines belastbaren Discovery-Fundaments.
+**Verworfene Alternativen:** Direkte Handle-Suche ueber `search.list` als Primarpfad, URL-Parsing ohne stabile Kanal-ID, mehrere heuristische Aufloesungspfade im ersten Live-Import
