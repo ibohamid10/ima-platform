@@ -1,0 +1,70 @@
+{
+  "platform": "youtube",
+  "handle": "ingesttemporal20260417074950",
+  "external_id": "yt-ingesttemporal20260417074950",
+  "profile_url": "https://youtube.com/@ingesttemporal20260417074950",
+  "display_name": "Ingest Temporal 20260417074950",
+  "bio": "Hyrox coach and nutrition creator from Vienna.",
+  "follower_count": 210000,
+  "primary_language": "en",
+  "source_labels": [
+    "manual_fixture",
+    "youtube_api"
+  ],
+  "metric_snapshot": {
+    "captured_at": "2026-04-16T12:00:00+02:00",
+    "follower_count": 210000,
+    "average_views_30d": 22000,
+    "average_likes_30d": 1500,
+    "average_comments_30d": 120,
+    "engagement_rate_30d": "0.0460",
+    "source": "fixture"
+  },
+  "content_items": [
+    {
+      "platform_content_id": "video-101",
+      "content_type": "video",
+      "url": "https://youtube.com/watch?v=video-101",
+      "title": "Hyrox race prep",
+      "caption_text": "Training and nutrition breakdown for race week.",
+      "top_hashtags": [
+        "hyrox",
+        "fitness",
+        "vienna"
+      ],
+      "raw_payload": {
+        "source": "fixture"
+      }
+    },
+    {
+      "platform_content_id": "video-102",
+      "content_type": "video",
+      "url": "https://youtube.com/watch?v=video-102",
+      "title": "What I eat in race week",
+      "caption_text": "Food and recovery for endurance competitions.",
+      "top_hashtags": [
+        "nutrition",
+        "fitness",
+        "food"
+      ],
+      "raw_payload": {
+        "source": "fixture"
+      }
+    },
+    {
+      "platform_content_id": "video-103",
+      "content_type": "video",
+      "url": "https://youtube.com/watch?v=video-103",
+      "title": "Running volume and pacing",
+      "caption_text": "How I structure volume before the next event.",
+      "top_hashtags": [
+        "running",
+        "hyrox",
+        "training"
+      ],
+      "raw_payload": {
+        "source": "fixture"
+      }
+    }
+  ]
+}

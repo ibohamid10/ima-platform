@@ -3,42 +3,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ima.creators.schemas import CreatorGrowthSnapshotInput, CreatorScoreResult
 from ima.db.models import Creator, CreatorContent, CreatorMetricSnapshot
 from ima.logging import get_logger
 
 logger = get_logger(__name__)
-
-
-class CreatorGrowthSnapshotInput(BaseModel):
-    """Structured input for storing a creator metric snapshot."""
-
-    creator_id: str
-    captured_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    follower_count: int | None = None
-    average_views_30d: int | None = None
-    average_likes_30d: int | None = None
-    average_comments_30d: int | None = None
-    engagement_rate_30d: Decimal | None = None
-    source: str = "system"
-
-
-class CreatorScoreResult(BaseModel):
-    """Structured result of the initial creator scoring heuristics."""
-
-    creator_id: str
-    growth_score: int
-    commercial_readiness_score: int
-    fraud_risk_score: int
-    evidence_coverage_score: int
-    is_qualified: bool
-    qualification_reasons: list[str]
 
 
 class CreatorScoringService:

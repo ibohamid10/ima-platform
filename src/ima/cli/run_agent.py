@@ -11,24 +11,31 @@ from pathlib import Path
 import typer
 from pydantic import BaseModel
 from sqlalchemy import select
+from temporalio.common import WorkflowIDConflictPolicy
 
 from ima.agents.classifier.contract import CLASSIFIER_CONTRACT, ClassifierInput
 from ima.agents.executor import AgentExecutor
 from ima.config import settings
-from ima.creators.ingest import CreatorIngestInput, CreatorIngestService
-from ima.creators.scoring import CreatorGrowthSnapshotInput, CreatorScoringService
+from ima.creators.ingest import CreatorIngestService
+from ima.creators.schemas import CreatorGrowthSnapshotInput, CreatorIngestInput, CreatorIngestResult
+from ima.creators.scoring import CreatorScoringService
 from ima.db.models import Creator
 from ima.db.session import get_session_factory
 from ima.observability.langfuse_hook import LangfuseHook
 from ima.providers.llm.anthropic_adapter import AnthropicAdapter
 from ima.providers.llm.base import LLMMessage, LLMResponse
 from ima.providers.llm.openai_adapter import OpenAIAdapter
+from ima.temporal.client import get_temporal_client
+from ima.temporal.constants import CREATOR_INGEST_WORKFLOW, CREATOR_TASK_QUEUE
+from ima.temporal.worker import run_creator_worker
 
 app = typer.Typer(help="CLI for local IMA agent execution.")
 run_agent_app = typer.Typer(help="Run a specific agent contract.")
 creator_app = typer.Typer(help="Creator growth tracking and scoring tools.")
+temporal_app = typer.Typer(help="Temporal worker and workflow tools.")
 app.add_typer(run_agent_app, name="run-agent")
 app.add_typer(creator_app, name="creators")
+app.add_typer(temporal_app, name="temporal")
 
 
 class OfflineClassifierProvider:
@@ -290,4 +297,50 @@ async def _ingest_creator(input_file: Path) -> None:
         service = CreatorIngestService(session)
         result = await service.ingest(payload)
         await session.commit()
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
+@temporal_app.command("run-creator-worker")
+def run_creator_worker_command(
+    task_queue: str = typer.Option(CREATOR_TASK_QUEUE, "--task-queue"),
+) -> None:
+    """Run the local Temporal worker for creator ingest workflows."""
+
+    asyncio.run(run_creator_worker(task_queue=task_queue))
+
+
+@temporal_app.command("ingest-creator")
+def ingest_creator_workflow(
+    input_file: Path = typer.Option(..., "--input-file", exists=True, readable=True),
+    workflow_id: str | None = typer.Option(None, "--workflow-id"),
+    task_queue: str = typer.Option(CREATOR_TASK_QUEUE, "--task-queue"),
+) -> None:
+    """Execute the creator ingest workflow on the local Temporal server."""
+
+    asyncio.run(
+        _execute_creator_ingest_workflow(
+            input_file=input_file,
+            workflow_id=workflow_id,
+            task_queue=task_queue,
+        )
+    )
+
+
+async def _execute_creator_ingest_workflow(
+    input_file: Path,
+    workflow_id: str | None,
+    task_queue: str,
+) -> None:
+    """Start one creator ingest workflow and print the structured result."""
+
+    payload = CreatorIngestInput.model_validate_json(input_file.read_text(encoding="utf-8"))
+    client = await get_temporal_client()
+    result = await client.execute_workflow(
+        CREATOR_INGEST_WORKFLOW,
+        payload,
+        id=workflow_id or f"creator-ingest-{payload.platform}-{payload.handle}",
+        task_queue=task_queue,
+        result_type=CreatorIngestResult,
+        id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
+    )
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
