@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import UUID
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ima.db.models import Creator, CreatorContent, CreatorMetricSnapshot, EvidenceItem
+from ima.evidence.fetchers import EvidencePageFetcher, HttpEvidencePageFetcher
 from ima.evidence.schemas import EvidenceBuildResult, EvidenceItemResult
 from ima.evidence.storage import EvidenceStorage, LocalEvidenceStorage
 from ima.logging import get_logger
@@ -23,11 +25,13 @@ class EvidenceBuilderService:
         self,
         session: AsyncSession,
         storage: EvidenceStorage | None = None,
+        page_fetcher: EvidencePageFetcher | None = None,
     ) -> None:
         """Create the evidence builder for one async session."""
 
         self.session = session
         self.storage = storage or LocalEvidenceStorage()
+        self.page_fetcher = page_fetcher or HttpEvidencePageFetcher()
 
     async def build_creator_evidence_by_handle(
         self,
@@ -90,6 +94,12 @@ class EvidenceBuilderService:
             },
         )
         artifact_uris.append(profile_artifact.source_uri)
+        await self._store_html_snapshot(
+            creator=creator,
+            artifact_uris=artifact_uris,
+            url=creator.profile_url,
+            suffix="profile/page.html",
+        )
 
         if creator.bio:
             evidence_results.append(
@@ -199,6 +209,12 @@ class EvidenceBuilderService:
                 },
             )
             artifact_uris.append(content_artifact.source_uri)
+            await self._store_html_snapshot(
+                creator=creator,
+                artifact_uris=artifact_uris,
+                url=content.url,
+                suffix=f"content/{self._content_key(content)}/page.html",
+            )
 
             if content.title:
                 evidence_results.append(
@@ -324,3 +340,35 @@ class EvidenceBuilderService:
         """Resolve a stable content artifact key segment."""
 
         return content.platform_content_id or str(content.id)
+
+    async def _store_html_snapshot(
+        self,
+        *,
+        creator: Creator,
+        artifact_uris: list[str],
+        url: str | None,
+        suffix: str,
+    ) -> None:
+        """Fetch and persist one HTML snapshot when a source URL is available."""
+
+        if not url:
+            return
+
+        try:
+            html = await self.page_fetcher.fetch_html(url)
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "evidence_html_snapshot_failed",
+                creator_id=str(creator.id),
+                handle=creator.handle,
+                url=url,
+                error_message=str(exc),
+            )
+            return
+
+        artifact = await self.storage.put_text(
+            key=self._artifact_key(creator=creator, suffix=suffix),
+            payload=html,
+            content_type="text/html",
+        )
+        artifact_uris.append(artifact.source_uri)

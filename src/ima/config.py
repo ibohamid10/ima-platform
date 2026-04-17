@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     evidence_storage_backend: str = Field(default="local", alias="EVIDENCE_STORAGE_BACKEND")
     evidence_storage_root: str = Field(default="data/evidence", alias="EVIDENCE_STORAGE_ROOT")
     evidence_storage_bucket: str = Field(default="ima-evidence-dev", alias="EVIDENCE_STORAGE_BUCKET")
+    evidence_fetch_timeout_seconds: float = Field(
+        default=15.0,
+        alias="EVIDENCE_FETCH_TIMEOUT_SECONDS",
+    )
+    evidence_fetch_user_agent: str = Field(
+        default="IMA-EvidenceBuilder/0.1 (+https://github.com/ibohamid10/ima-platform)",
+        alias="EVIDENCE_FETCH_USER_AGENT",
+    )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     log_format: str = Field(default="dev", alias="LOG_FORMAT")
     llm_daily_budget_usd: float = Field(default=20.0, alias="LLM_DAILY_BUDGET_USD")

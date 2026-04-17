@@ -15,6 +15,15 @@ from ima.evidence.builder import EvidenceBuilderService
 from ima.evidence.storage import LocalEvidenceStorage
 
 
+class FakeEvidencePageFetcher:
+    """Deterministic HTML fetcher for evidence builder tests."""
+
+    async def fetch_html(self, url: str) -> str:
+        """Return predictable HTML content for the requested URL."""
+
+        return f"<html><body>{url}</body></html>"
+
+
 async def test_evidence_builder_persists_items_and_artifacts(
     sqlite_session_factory,
     tmp_path: Path,
@@ -72,6 +81,7 @@ async def test_evidence_builder_persists_items_and_artifacts(
         builder = EvidenceBuilderService(
             session,
             storage=LocalEvidenceStorage(root=evidence_root, bucket="test-evidence"),
+            page_fetcher=FakeEvidencePageFetcher(),
         )
         result = await builder.build_creator_evidence_by_handle(
             platform="youtube",
@@ -82,10 +92,11 @@ async def test_evidence_builder_persists_items_and_artifacts(
         stored_items = list((await session.scalars(select(EvidenceItem))).all())
 
     assert result.evidence_count == 7
-    assert result.artifact_count == 4
+    assert result.artifact_count == 7
     assert evidence_count == 7
     assert all(item.source_uri for item in stored_items)
     assert (evidence_root / "creators" / "youtube" / "evidencefresh" / "profile" / "current.json").exists()
+    assert (evidence_root / "creators" / "youtube" / "evidencefresh" / "profile" / "page.html").exists()
     assert result.artifact_uris[0].startswith("evidence://test-evidence/")
 
 
@@ -127,7 +138,11 @@ async def test_evidence_builder_is_idempotent_on_source_keys(
 
     storage = LocalEvidenceStorage(root=tmp_path / "evidence-store", bucket="test-evidence")
     async with sqlite_session_factory() as session:
-        builder = EvidenceBuilderService(session, storage=storage)
+        builder = EvidenceBuilderService(
+            session,
+            storage=storage,
+            page_fetcher=FakeEvidencePageFetcher(),
+        )
         first = await builder.build_creator_evidence_by_handle(platform="youtube", handle="evidenceupdate")
         second = await builder.build_creator_evidence_by_handle(platform="youtube", handle="evidenceupdate")
         await session.commit()
