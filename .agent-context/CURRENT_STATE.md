@@ -5,15 +5,15 @@ Letztes Update: 2026-04-17
 ## Stand heute
 
 - **Phase:** 1 (Woche 2 aktiv)
-- **Aktuelle Aufgabe:** Neben dem Creator-Ingest-Workflow gibt es jetzt einen echten YouTube-Data-v3-Harvester, der einen Kanal per `channel_id` laedt, letzte Uploads in einen `HarvestedCreatorRecord` mappt und dann denselben kanonischen Ingest-Pfad wie Fixtures nutzt.
-- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator`, `ima creators import-source-batch` und `ima creators import-youtube-channel` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, der erste orchestrierte Creator-Flow, der fixture-basierte Source-Import und der Live-YouTube-Import gegen einen echten Kanal sind lokal verifiziert.
+- **Aktuelle Aufgabe:** Der Evidence-Builder steht jetzt als erstes echtes Fundament fuer `evidence_items`. Er schreibt lokale Rohartefakte ueber eine objekt-storage-artige Abstraktion nach `data/evidence/` und erzeugt kanonische `source_uri` im Format `evidence://bucket/key`.
+- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator`, `ima creators import-source-batch`, `ima creators import-youtube-channel` und `ima evidence build-creator` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, `evidence_items`, der erste orchestrierte Creator-Flow, der fixture-basierte Source-Import, der Live-YouTube-Import gegen einen echten Kanal und der Live-Evidence-Build gegen diesen Kanal sind lokal verifiziert.
 - **Blocker:** Keine
 
 ## Naechste Tasks
 
-1. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten vor Umsetzung klaeren
+1. Evidence-Builder um HTML-Snapshots, Screenshots und weitere Rohartefakte erweitern
 2. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
-3. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten finalisieren
+3. Retention-, Verschluesselungs- und Production-Provider-Policy fuer Evidence-Artefakte finalisieren
 4. Brand-Seite und Spend-Intent-Scaffold fuer Woche 3 vorbereiten
 
 ## Operativer Hinweis

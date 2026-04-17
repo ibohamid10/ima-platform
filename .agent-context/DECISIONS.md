@@ -103,3 +103,9 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** Der Live-Harvester erwartet zunaechst `channel_id` als Eingabe. Darauf baut er `channels.list`, die Uploads-Playlist und `videos.list` auf. Eine spaetere Komfortauflosung von Handle oder URL bleibt optional.
 **Begruendung:** `channel_id` ist stabil, API-first und reduziert Fehlzuordnungen durch fuzzy Suche. Das passt besser zum Ziel eines belastbaren Discovery-Fundaments.
 **Verworfene Alternativen:** Direkte Handle-Suche ueber `search.list` als Primarpfad, URL-Parsing ohne stabile Kanal-ID, mehrere heuristische Aufloesungspfade im ersten Live-Import
+
+## 2026-04-17 - Evidence-Artefakte laufen ueber object-storage-artige URIs mit lokalem Dev-Adapter
+**Kontext:** Der Evidence-Builder braucht persistente Rohartefakte vor dem finalen Entscheid zwischen R2 und S3. Direkte Dateipfade wuerden spaetere Provider-Wechsel in Claims, `source_uri` und Builder-Code streuen.
+**Entscheidung:** Der Builder schreibt im Dev-Setup ueber eine `EvidenceStorage`-Abstraktion nach `data/evidence/`, verwendet aber bereits kanonische `source_uri` im Format `evidence://<bucket>/<key>`. Der lokale Adapter ist nur die erste Backend-Implementation hinter dieser URI-Grenze.
+**Begruendung:** Das entblockt die Evidence-Implementierung jetzt, ohne spaeteren Lock-in auf lokale Dateipfade zu erzeugen. Gleichzeitig bleiben Claims, Evidence-IDs und Builder-Logik provider-neutral.
+**Verworfene Alternativen:** Direkte lokale Dateipfade als `source_uri`, Builder ohne persistente Rohartefakte, sofortige harte Festlegung auf einen einzelnen Cloud-Provider vor dem ersten Builder-Prototyp

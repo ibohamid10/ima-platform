@@ -63,3 +63,10 @@ Jeder Eintrag nutzt dieses Schema:
 **Root Cause:** Die aktuelle Fraud-Heuristik interpretiert ein niedriges View-zu-Subscriber-Verhaeltnis sehr streng. Bei sehr grossen, etablierten Kanaelen oder allgemein-populistischen Content-Profilen ist diese Regel fuer Phase 1 zu grob.
 **Fix:** Noch kein Code-Fix in diesem Schritt. Das Ergebnis wurde als reales Kalibrierungssignal dokumentiert; Fraud- und Qualification-Heuristiken muessen vor breiterem Live-Harvesting mit echten Kanaelen nachgeschaerft werden.
 **Prevention-Rule:** Neue Harvest-Quellen immer mindestens einmal gegen echte Live-Daten pruefen, bevor heuristische Scores als belastbar angenommen werden.
+
+## 2026-04-17 - Windows-CLI braucht fuer Live-Evidence-Output ASCII-sichere JSON-Ausgabe
+**Kategorie:** Testing
+**Symptom:** `ima evidence build-creator` lief fachlich durch, scheiterte am Ende aber auf Windows mit `UnicodeEncodeError`, sobald echte Creator-Texte Sonderzeichen wie Pfeile enthielten.
+**Root Cause:** Das lokale Terminal schrieb ueber eine `cp1252`-Konsole, waehrend der JSON-Output ungefilterte Unicode-Zeichen aus Live-YouTube-Captions enthielt.
+**Fix:** Der CLI-Output fuer den Evidence-Builder wird jetzt ASCII-sicher serialisiert (`ensure_ascii=True`), waehrend die eigentlichen Artefakte unveraendert im Storage liegen.
+**Prevention-Rule:** Neue CLI-Pfade immer mindestens einmal mit echten Live-Daten statt nur mit ASCII-lastigen Fixtures pruefen.

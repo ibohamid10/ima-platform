@@ -30,6 +30,6 @@ Offene Fragen gehoeren hierher, wenn sie fuer Scope, Architektur, Priorisierung 
 **Kontext:** Das Abstraktionsmodell ist gesetzt, aber der erste konkrete Adapter ist noch offen.
 **Trigger fuer Entscheidung:** In Woche 1 vor Start der Mail-Integration. Kandidaten sind Instantly oder Smartlead.
 
-## Storage-Strategie fuer Evidence-Rohdaten
-**Kontext:** Evidence-Builder erzeugt Rohdaten wie HTML-Snapshots, Screenshots und Scrape-Responses, die in R2 oder S3 persistiert werden muessen.
-**Trigger fuer Entscheidung:** Vor Implementation des Evidence-Builders in Woche 2. Zu klaeren sind Retention-Policy, Pfad-Struktur, Format fuer Referenzen in `evidence_items.source_uri` und Verschluesselung.
+## Production-Policy fuer Evidence-Artefakte
+**Kontext:** Die technische Grundrichtung ist jetzt gesetzt: `source_uri` nutzt `evidence://bucket/key`, und der Dev-Adapter schreibt lokal nach `data/evidence/`. Offen bleiben die produktiven Betriebsregeln fuer dieselben Artefakte.
+**Trigger fuer Entscheidung:** Vor produktivem Evidence-Harvesting oder vor dem ersten Cloud-Storage-Backend. Zu klaeren sind Retention-Policy, Verschluesselung, Bucket-Struktur und ob R2 oder S3 zuerst der produktive Adapter wird.
