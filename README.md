@@ -24,6 +24,7 @@ uv run ima run-agent classifier --input-file tests/golden_sets/classifier/exampl
 uv run ima creators record-snapshot --platform youtube --handle fitgrowthlocal --captured-at 2026-03-15T10:00:00+00:00 --follower-count 130000 --average-views-30d 12000
 uv run ima creators score --platform youtube --handle fitgrowthlocal
 uv run ima creators ingest --input-file tests/fixtures/creator_ingest_example.json
+uv run ima creators import-source-batch --input-file tests/fixtures/creator_source_batch.json --direct
 ```
 
 ## Erste Temporal-Orchestrierung
@@ -31,9 +32,12 @@ uv run ima creators ingest --input-file tests/fixtures/creator_ingest_example.js
 ```bash
 uv run ima temporal run-creator-worker
 uv run ima temporal ingest-creator --input-file tests/fixtures/creator_ingest_temporal_run.json --workflow-id creator-ingest-local-001
+uv run ima creators import-source-batch --input-file tests/fixtures/creator_source_batch.json --via-temporal --workflow-prefix source-fixture
 ```
 
 Der Workflow delegiert bewusst alle DB- und I/O-Arbeit an Activities. Die Workflow-Payloads leben in `src/ima/creators/schemas.py`, damit die Temporal-Sandbox keine ORM- oder Service-Module importieren muss.
+
+Der fixture-basierte Harvester-/Enricher-Stub lebt unter `src/ima/harvesters/`. Er normalisiert Rohdaten zuerst auf `CreatorIngestInput` und nutzt danach denselben Ingest-Pfad wie manuelle Creator-Fixtures. Das ist die Bruecke fuer spaetere echte YouTube-Data-v3-Integrationen.
 
 ## Tests
 

@@ -91,3 +91,9 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** Workflow-Payloads und Workflow-Result-Typen leben in reinen Pydantic-Schema-Modulen ohne ORM- oder Provider-Abhaengigkeiten. Alle DB- und I/O-Arbeit bleibt in Activities oder Services ausserhalb des Workflow-Moduls.
 **Begruendung:** Das haelt Workflows deterministisch, verhindert Sandbox-Importfehler und etabliert ein belastbares Muster fuer alle spaeteren Temporal-Flows.
 **Verworfene Alternativen:** Workflow-Module importieren direkt Service-Module mit SQLAlchemy-Abhaengigkeiten, Workflow und Activity teilen sich ein einziges I/O-lastiges Modul
+
+## 2026-04-17 - Harvester normalisieren zuerst auf den kanonischen Creator-Ingest-Contract
+**Kontext:** Neue Creator-Quellen wie lokale Fixtures, spaeter YouTube Data API oder andere Harvester, duerfen nicht jeweils eigene Schreibpfade in die Datenbank mitbringen.
+**Entscheidung:** Harvester- und Enricher-Stubs liefern zuerst einen `CreatorIngestInput`. Persistenz, Snapshot-Schreiben und Re-Scoring laufen danach ausschliesslich ueber den bestehenden Creator-Ingest-Service oder den `creator-ingest-workflow`.
+**Begruendung:** Das haelt die Datenbank-Grenze zentral, reduziert source-spezifische Logik im Fachcode und ermoeglicht spaetere Source-Swaps ohne Refactor der Persistenzschicht.
+**Verworfene Alternativen:** Jeder Harvester schreibt direkt in `creators` und `creator_content`, source-spezifische DB-Pfade pro Plattform, separater Workflow pro Datenquelle mit eigener Persistenzlogik

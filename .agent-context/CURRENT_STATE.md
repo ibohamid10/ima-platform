@@ -1,18 +1,18 @@
 # Current State
 
-Letztes Update: 2026-04-16
+Letztes Update: 2026-04-17
 
 ## Stand heute
 
 - **Phase:** 1 (Woche 2 aktiv)
-- **Aktuelle Aufgabe:** Der erste Creator-Ingest-Pfad ist jetzt nicht nur als Service und CLI, sondern auch als erste Temporal-Activity plus `creator-ingest-workflow` verfuegbar. Creator, Content, Snapshot und Re-Scoring koennen lokal orchestriert werden.
-- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker` und `ima temporal ingest-creator` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots` und der erste orchestrierte Creator-Flow sind lokal verifiziert.
+- **Aktuelle Aufgabe:** Neben dem Creator-Ingest-Workflow gibt es jetzt einen fixture-basierten Harvester-/Enricher-Stub, der Creator-Quellen auf `CreatorIngestInput` normalisiert und dann direkt oder via Temporal in denselben Ingest-Pfad schickt.
+- **Status:** `docker compose up -d`, `scripts/db_migrate.py`, `scripts/smoke_test.py`, `uv run pytest`, `ima run-agent classifier`, `ima creators ingest`, `ima creators record-snapshot`, `ima creators score`, `ima temporal run-creator-worker`, `ima temporal ingest-creator` und `ima creators import-source-batch` laufen lokal. `schema_migrations`, `creators`, `creator_content`, `creator_metric_snapshots`, der erste orchestrierte Creator-Flow und ein fixture-basierter Source-Import sind lokal verifiziert.
 - **Blocker:** Keine
 
 ## Naechste Tasks
 
 1. Evidence-Builder vorbereiten, inklusive Storage-Strategie fuer Rohdaten vor Umsetzung klaeren
-2. Einen ersten Harvester-/Enricher-Stub an den Creator-Ingest-Workflow anschliessen statt nur manuelle Fixtures zu nutzen
+2. Den fixture-basierten Source-Import durch einen echten YouTube-Data-v3-Harvester ersetzen, sobald API-Key und Quoten-Setup lokal hinterlegt sind
 3. Golden-Set-Pattern auf weitere LLM-basierte Agenten uebertragen
 4. Brand-Seite und Spend-Intent-Scaffold fuer Woche 3 vorbereiten
 
