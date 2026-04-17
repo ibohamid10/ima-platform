@@ -76,7 +76,8 @@ class PlaywrightScreenshotFetcher:
             from playwright.async_api import async_playwright
         except ImportError as exc:
             raise RuntimeError(
-                "Playwright ist nicht installiert. Bitte Dependencies und Browser-Binaries einrichten."
+                "Playwright ist nicht installiert. "
+                "Bitte Dependencies und Browser-Binaries einrichten."
             ) from exc
 
         try:
@@ -97,7 +98,9 @@ class PlaywrightScreenshotFetcher:
                         timeout=self.timeout_milliseconds,
                     )
                     if response is not None and response.status >= 400:
-                        raise RuntimeError(f"Screenshot page returned HTTP {response.status} for {url}")
+                        raise RuntimeError(
+                            f"Screenshot page returned HTTP {response.status} for {url}"
+                        )
                     return await page.screenshot(type="png", full_page=True)
                 finally:
                     await context.close()

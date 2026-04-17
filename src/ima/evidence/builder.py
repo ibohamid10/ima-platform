@@ -1,7 +1,8 @@
-"""Evidence builder for creator profiles and content-based claim coverage."""
+"""Evidence builder that prepares artifacts and persists agent-generated evidence."""
 
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -9,6 +10,12 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ima.agents.evidence_builder.contract import (
+    EvidenceBuilderInput,
+    EvidenceBuilderOutput,
+    EvidenceContentRecord,
+)
+from ima.agents.executor import AgentExecutor
 from ima.db.models import Creator, CreatorContent, CreatorMetricSnapshot, EvidenceItem
 from ima.evidence.fetchers import (
     EvidencePageFetcher,
@@ -24,7 +31,7 @@ logger = get_logger(__name__)
 
 
 class EvidenceBuilderService:
-    """Build evidence artifacts and evidence_items from canonical creator data."""
+    """Prepare artifacts, execute the evidence agent, and persist evidence items."""
 
     def __init__(
         self,
@@ -32,6 +39,7 @@ class EvidenceBuilderService:
         storage: EvidenceStorage | None = None,
         page_fetcher: EvidencePageFetcher | None = None,
         visual_fetcher: EvidenceVisualFetcher | None = None,
+        agent_executor: AgentExecutor | None = None,
     ) -> None:
         """Create the evidence builder for one async session."""
 
@@ -39,6 +47,7 @@ class EvidenceBuilderService:
         self.storage = storage or LocalEvidenceStorage()
         self.page_fetcher = page_fetcher or HttpEvidencePageFetcher()
         self.visual_fetcher = visual_fetcher or PlaywrightScreenshotFetcher()
+        self.agent_executor = agent_executor
 
     async def build_creator_evidence_by_handle(
         self,
@@ -56,7 +65,12 @@ class EvidenceBuilderService:
         return await self.build_creator_evidence(creator_id=creator.id)
 
     async def build_creator_evidence(self, *, creator_id: UUID) -> EvidenceBuildResult:
-        """Build evidence artifacts and structured evidence items for one creator."""
+        """Build artifacts, run the evidence agent, and persist one creator's evidence items."""
+
+        if self.agent_executor is None:
+            raise ValueError(
+                "EvidenceBuilderService braucht einen AgentExecutor fuer Evidence-Generation."
+            )
 
         creator = await self.session.get(Creator, creator_id)
         if creator is None:
@@ -78,13 +92,10 @@ class EvidenceBuilderService:
         )
 
         artifact_uris: list[str] = []
-        evidence_results: list[EvidenceItemResult] = []
+        source_lookup: dict[str, dict[str, object]] = {}
 
         profile_artifact = await self.storage.put_json(
-            key=self._artifact_key(
-                creator=creator,
-                suffix="profile/current.json",
-            ),
+            key=self._artifact_key(creator=creator, suffix="profile/current.json"),
             payload={
                 "creator_id": str(creator.id),
                 "platform": creator.platform,
@@ -92,15 +103,17 @@ class EvidenceBuilderService:
                 "profile_url": creator.profile_url,
                 "display_name": creator.display_name,
                 "bio": creator.bio,
-                "follower_count": creator.follower_count,
-                "primary_language": creator.primary_language,
-                "niche": creator.niche,
-                "sub_niches": creator.sub_niches,
-                "source_labels": creator.source_labels,
+                "followers": creator.followers,
+                "language": creator.language,
+                "niche_labels": creator.niche_labels,
                 "built_at": datetime.now(UTC).isoformat(),
             },
         )
         artifact_uris.append(profile_artifact.source_uri)
+        source_lookup[profile_artifact.source_uri] = {
+            "artifact_uri": profile_artifact.source_uri,
+            "snippet_text": creator.bio,
+        }
         await self._store_html_snapshot(
             creator=creator,
             artifact_uris=artifact_uris,
@@ -114,53 +127,15 @@ class EvidenceBuilderService:
             suffix="profile/page.png",
         )
 
-        if creator.bio:
-            evidence_results.append(
-                await self._upsert_evidence_item(
-                    creator_id=creator.id,
-                    source_key=f"creator:{creator.id}:bio",
-                    evidence_type="creator_bio",
-                    source_kind="creator_profile",
-                    claim_text=creator.bio,
-                    source_uri=profile_artifact.source_uri,
-                    artifact_uri=profile_artifact.source_uri,
-                    snippet_text=creator.bio,
-                    metadata_json={
-                        "platform": creator.platform,
-                        "handle": creator.handle,
-                    },
-                )
-            )
-
-        if creator.follower_count is not None:
-            evidence_results.append(
-                await self._upsert_evidence_item(
-                    creator_id=creator.id,
-                    source_key=f"creator:{creator.id}:follower_count",
-                    evidence_type="creator_metric",
-                    source_kind="creator_profile",
-                    claim_text=f"Follower count observed at {creator.follower_count}.",
-                    source_uri=profile_artifact.source_uri,
-                    artifact_uri=profile_artifact.source_uri,
-                    snippet_text=str(creator.follower_count),
-                    metadata_json={
-                        "metric_name": "follower_count",
-                        "metric_value": creator.follower_count,
-                    },
-                )
-            )
-
+        snapshot_artifact_uri: str | None = None
         if latest_snapshot is not None:
             snapshot_artifact = await self.storage.put_json(
-                key=self._artifact_key(
-                    creator=creator,
-                    suffix="metrics/latest.json",
-                ),
+                key=self._artifact_key(creator=creator, suffix="metrics/latest.json"),
                 payload={
                     "snapshot_id": str(latest_snapshot.id),
                     "creator_id": str(creator.id),
                     "captured_at": latest_snapshot.captured_at.isoformat(),
-                    "follower_count": latest_snapshot.follower_count,
+                    "followers": latest_snapshot.follower_count,
                     "average_views_30d": latest_snapshot.average_views_30d,
                     "average_likes_30d": latest_snapshot.average_likes_30d,
                     "average_comments_30d": latest_snapshot.average_comments_30d,
@@ -172,29 +147,27 @@ class EvidenceBuilderService:
                     "source": latest_snapshot.source,
                 },
             )
-            artifact_uris.append(snapshot_artifact.source_uri)
-            if latest_snapshot.average_views_30d is not None:
-                evidence_results.append(
-                    await self._upsert_evidence_item(
-                        creator_id=creator.id,
-                        snapshot_id=latest_snapshot.id,
-                        source_key=f"snapshot:{latest_snapshot.id}:average_views_30d",
-                        evidence_type="creator_metric",
-                        source_kind="creator_snapshot",
-                        claim_text=(
-                            f"Average views over recent sampled videos observed at "
-                            f"{latest_snapshot.average_views_30d}."
-                        ),
-                        source_uri=snapshot_artifact.source_uri,
-                        artifact_uri=snapshot_artifact.source_uri,
-                        snippet_text=str(latest_snapshot.average_views_30d),
-                        metadata_json={
-                            "metric_name": "average_views_30d",
-                            "metric_value": latest_snapshot.average_views_30d,
-                        },
-                    )
-                )
+            snapshot_artifact_uri = snapshot_artifact.source_uri
+            artifact_uris.append(snapshot_artifact_uri)
+            source_lookup[snapshot_artifact_uri] = {
+                "snapshot_id": latest_snapshot.id,
+                "artifact_uri": snapshot_artifact_uri,
+                "snippet_text": (
+                    str(latest_snapshot.average_views_30d)
+                    if latest_snapshot.average_views_30d is not None
+                    else None
+                ),
+            }
 
+        content_records: list[EvidenceContentRecord] = []
+        existing_brands = sorted(
+            {
+                brand
+                for content in content_items
+                for brand in (content.detected_brands or [])
+                if brand
+            }
+        )
         for content in content_items:
             content_artifact = await self.storage.put_json(
                 key=self._artifact_key(
@@ -208,7 +181,7 @@ class EvidenceBuilderService:
                     "content_type": content.content_type,
                     "url": content.url,
                     "title": content.title,
-                    "caption_text": content.caption_text,
+                    "caption": content.caption,
                     "published_at": (
                         content.published_at.isoformat()
                         if content.published_at is not None
@@ -217,11 +190,24 @@ class EvidenceBuilderService:
                     "view_count": content.view_count,
                     "like_count": content.like_count,
                     "comment_count": content.comment_count,
-                    "top_hashtags": content.top_hashtags,
+                    "hashtags": content.hashtags,
+                    "detected_brands": content.detected_brands,
+                    "sponsor_probability": (
+                        float(content.sponsor_probability)
+                        if content.sponsor_probability is not None
+                        else None
+                    ),
                     "raw_payload": content.raw_payload,
                 },
             )
             artifact_uris.append(content_artifact.source_uri)
+            content.raw_snapshot_uri = content_artifact.source_uri
+            primary_source_uri = content.url or content_artifact.source_uri
+            source_lookup[primary_source_uri] = {
+                "content_id": content.id,
+                "artifact_uri": content_artifact.source_uri,
+                "snippet_text": content.caption or content.title,
+            }
             await self._store_html_snapshot(
                 creator=creator,
                 artifact_uris=artifact_uris,
@@ -234,44 +220,54 @@ class EvidenceBuilderService:
                 url=content.url,
                 suffix=f"content/{self._content_key(content)}/page.png",
             )
-
-            if content.title:
-                evidence_results.append(
-                    await self._upsert_evidence_item(
-                        creator_id=creator.id,
-                        content_id=content.id,
-                        source_key=f"content:{content.id}:title",
-                        evidence_type="content_title",
-                        source_kind="creator_content",
-                        claim_text=content.title,
-                        source_uri=content.url or content_artifact.source_uri,
-                        artifact_uri=content_artifact.source_uri,
-                        snippet_text=content.title,
-                        metadata_json={
-                            "platform_content_id": content.platform_content_id,
-                            "content_type": content.content_type,
-                        },
-                    )
+            content_records.append(
+                EvidenceContentRecord(
+                    title=content.title,
+                    caption=content.caption,
+                    source_uri=primary_source_uri,
+                    source_type=self._content_source_type(creator.platform),
+                    hashtags=content.hashtags,
+                    detected_brands=content.detected_brands or [],
+                    sponsor_probability=(
+                        float(content.sponsor_probability)
+                        if content.sponsor_probability is not None
+                        else None
+                    ),
                 )
+            )
 
-            if content.caption_text:
-                evidence_results.append(
-                    await self._upsert_evidence_item(
-                        creator_id=creator.id,
-                        content_id=content.id,
-                        source_key=f"content:{content.id}:caption",
-                        evidence_type="content_caption",
-                        source_kind="creator_content",
-                        claim_text=content.caption_text,
-                        source_uri=content.url or content_artifact.source_uri,
-                        artifact_uri=content_artifact.source_uri,
-                        snippet_text=content.caption_text,
-                        metadata_json={
-                            "platform_content_id": content.platform_content_id,
-                            "content_type": content.content_type,
-                        },
-                    )
-                )
+        metrics = {
+            "followers": creator.followers,
+            "avg_views_30d": creator.avg_views_30d,
+            "avg_views_90d": creator.avg_views_90d,
+            "avg_engagement_30d": (
+                float(creator.avg_engagement_30d)
+                if creator.avg_engagement_30d is not None
+                else None
+            ),
+            "metrics_source_uri": snapshot_artifact_uri or profile_artifact.source_uri,
+        }
+        agent_output = await self.agent_executor.run(
+            EvidenceBuilderInput(
+                creator_handle=creator.handle,
+                platform=creator.platform,
+                bio=creator.bio,
+                recent_content=content_records,
+                metrics=metrics,
+                existing_brands=existing_brands,
+            )
+        )
+        if not isinstance(agent_output, EvidenceBuilderOutput):
+            raise TypeError("EvidenceBuilder agent output ist nicht vom erwarteten Typ.")
+
+        evidence_results = [
+            await self._upsert_evidence_item(
+                creator=creator,
+                generated_item=item.model_dump(mode="json"),
+                source_lookup=source_lookup,
+            )
+            for item in agent_output.evidence_items
+        ]
 
         await self.session.flush()
         logger.info(
@@ -295,57 +291,67 @@ class EvidenceBuilderService:
     async def _upsert_evidence_item(
         self,
         *,
-        creator_id: UUID,
-        source_key: str,
-        evidence_type: str,
-        source_kind: str,
-        claim_text: str,
-        source_uri: str,
-        artifact_uri: str | None,
-        snippet_text: str | None,
-        metadata_json: dict[str, object],
-        content_id: UUID | None = None,
-        snapshot_id: UUID | None = None,
+        creator: Creator,
+        generated_item: dict[str, object],
+        source_lookup: dict[str, dict[str, object]],
     ) -> EvidenceItemResult:
-        """Insert or update one evidence item under a stable source key."""
+        """Insert or update one generated evidence item under a stable key."""
+
+        source_uri = str(generated_item["source_uri"])
+        source_type = str(generated_item["source_type"])
+        claim_text = str(generated_item["claim_text"])
+        confidence = float(generated_item["confidence"])
+        lookup = source_lookup.get(source_uri, {})
+        source_key = self._source_key(
+            creator_id=str(creator.id),
+            source_uri=source_uri,
+            claim_text=claim_text,
+        )
 
         evidence_item = await self.session.scalar(
             select(EvidenceItem).where(EvidenceItem.source_key == source_key)
         )
         if evidence_item is None:
             evidence_item = EvidenceItem(
-                creator_id=creator_id,
-                content_id=content_id,
-                snapshot_id=snapshot_id,
+                entity_type="creator",
+                entity_id=creator.id,
+                creator_id=creator.id,
+                content_id=lookup.get("content_id"),
+                snapshot_id=lookup.get("snapshot_id"),
                 source_key=source_key,
-                evidence_type=evidence_type,
-                source_kind=source_kind,
+                evidence_type=source_type,
+                source_type=source_type,
                 claim_text=claim_text,
                 source_uri=source_uri,
-                artifact_uri=artifact_uri,
-                snippet_text=snippet_text,
-                metadata_json=metadata_json,
+                confidence=confidence,
+                artifact_uri=lookup.get("artifact_uri"),
+                snippet_text=lookup.get("snippet_text"),
+                metadata_json={"creator_handle": creator.handle},
             )
             self.session.add(evidence_item)
         else:
-            evidence_item.creator_id = creator_id
-            evidence_item.content_id = content_id
-            evidence_item.snapshot_id = snapshot_id
-            evidence_item.evidence_type = evidence_type
-            evidence_item.source_kind = source_kind
+            evidence_item.entity_type = "creator"
+            evidence_item.entity_id = creator.id
+            evidence_item.creator_id = creator.id
+            evidence_item.content_id = lookup.get("content_id")
+            evidence_item.snapshot_id = lookup.get("snapshot_id")
+            evidence_item.evidence_type = source_type
+            evidence_item.source_type = source_type
             evidence_item.claim_text = claim_text
             evidence_item.source_uri = source_uri
-            evidence_item.artifact_uri = artifact_uri
-            evidence_item.snippet_text = snippet_text
-            evidence_item.metadata_json = metadata_json
+            evidence_item.confidence = confidence
+            evidence_item.artifact_uri = lookup.get("artifact_uri")
+            evidence_item.snippet_text = lookup.get("snippet_text")
+            evidence_item.metadata_json = {"creator_handle": creator.handle}
 
         await self.session.flush()
         return EvidenceItemResult(
             evidence_id=str(evidence_item.id),
             source_key=evidence_item.source_key,
-            evidence_type=evidence_item.evidence_type,
+            source_type=evidence_item.source_type,
             claim_text=evidence_item.claim_text,
             source_uri=evidence_item.source_uri,
+            confidence=float(evidence_item.confidence),
             artifact_uri=evidence_item.artifact_uri,
             snippet_text=evidence_item.snippet_text,
         )
@@ -359,6 +365,21 @@ class EvidenceBuilderService:
         """Resolve a stable content artifact key segment."""
 
         return content.platform_content_id or str(content.id)
+
+    def _content_source_type(self, platform: str) -> str:
+        """Map creator platform to the canonical evidence source type."""
+
+        if platform == "youtube":
+            return "youtube_video"
+        if platform == "instagram":
+            return "instagram_post"
+        return "tiktok_post"
+
+    def _source_key(self, *, creator_id: str, source_uri: str, claim_text: str) -> str:
+        """Build a stable unique key for one generated evidence item."""
+
+        digest = hashlib.sha256(f"{source_uri}|{claim_text}".encode()).hexdigest()[:16]
+        return f"creator:{creator_id}:{digest}"
 
     async def _store_html_snapshot(
         self,

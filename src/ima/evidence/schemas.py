@@ -23,9 +23,10 @@ class EvidenceItemResult(BaseModel):
 
     evidence_id: str
     source_key: str
-    evidence_type: str
+    source_type: str
     claim_text: str
     source_uri: str
+    confidence: float
     artifact_uri: str | None = None
     snippet_text: str | None = None
 

@@ -43,7 +43,9 @@ async def test_classifier_golden_set(case: dict[str, object], sqlite_session_fac
     executor = AgentExecutor(
         contract=CLASSIFIER_CONTRACT,
         llm_providers=providers,
-        db_session_factory=sqlite_session_factory if not integration_mode else get_session_factory(),
+        db_session_factory=sqlite_session_factory
+        if not integration_mode
+        else get_session_factory(),
         langfuse_hook=langfuse_hook,
     )
 

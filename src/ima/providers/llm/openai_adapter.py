@@ -25,8 +25,14 @@ class OpenAIAdapter(LLMProvider):
 
     MODEL_PRICES: dict[str, tuple[Decimal, Decimal]] = {
         "gpt-5.4": (Decimal("2.50"), Decimal("10.00")),  # TODO: Preise vor Production verifizieren
-        "gpt-5.4-mini": (Decimal("0.40"), Decimal("1.60")),  # TODO: Preise vor Production verifizieren
-        "gpt-5.4-nano": (Decimal("0.10"), Decimal("0.40")),  # TODO: Preise vor Production verifizieren
+        "gpt-5.4-mini": (
+            Decimal("0.40"),
+            Decimal("1.60"),
+        ),  # TODO: Preise vor Production verifizieren
+        "gpt-5.4-nano": (
+            Decimal("0.10"),
+            Decimal("0.40"),
+        ),  # TODO: Preise vor Production verifizieren
     }
 
     def __init__(
@@ -68,7 +74,9 @@ class OpenAIAdapter(LLMProvider):
             raise LLMProviderUnavailableError(f"OpenAI unterstuetzt Modell {model} nicht.")
 
         try:
-            raw_response = await self._post_responses(messages, model, response_schema, temperature, max_tokens)
+            raw_response = await self._post_responses(
+                messages, model, response_schema, temperature, max_tokens
+            )
             return self._normalize_responses_api(raw_response, model)
         except LLMProviderUnavailableError as exc:
             if "404" not in str(exc) and "400" not in str(exc):
@@ -187,7 +195,9 @@ class OpenAIAdapter(LLMProvider):
         try:
             message = raw_response["choices"][0]["message"]["content"]
         except (KeyError, IndexError) as exc:
-            raise LLMInvalidResponseError("OpenAI Chat Completions Antwort war unvollstaendig.") from exc
+            raise LLMInvalidResponseError(
+                "OpenAI Chat Completions Antwort war unvollstaendig."
+            ) from exc
 
         content = message if isinstance(message, str) else json.dumps(message)
         usage = raw_response.get("usage", {})

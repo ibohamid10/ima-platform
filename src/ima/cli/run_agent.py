@@ -1,4 +1,4 @@
-"""CLI entry point for running local agents."""
+"""CLI entry point for running local agents and week-2 creator workflows."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from pydantic import BaseModel
@@ -14,8 +15,13 @@ from sqlalchemy import select
 from temporalio.common import WorkflowIDConflictPolicy
 
 from ima.agents.classifier.contract import CLASSIFIER_CONTRACT, ClassifierInput
+from ima.agents.evidence_builder.contract import (
+    EVIDENCE_BUILDER_CONTRACT,
+    EvidenceBuilderOutput,
+)
 from ima.agents.executor import AgentExecutor
 from ima.config import settings
+from ima.creators.classification import CreatorClassificationService
 from ima.creators.ingest import CreatorIngestService
 from ima.creators.schemas import CreatorGrowthSnapshotInput, CreatorIngestInput, CreatorIngestResult
 from ima.creators.scoring import CreatorScoringService
@@ -23,7 +29,7 @@ from ima.db.models import Creator
 from ima.db.session import get_session_factory
 from ima.evidence.builder import EvidenceBuilderService
 from ima.harvesters.pipeline import CreatorSourceImportService
-from ima.harvesters.schemas import YouTubeChannelHarvestRequest
+from ima.harvesters.schemas import YouTubeChannelHarvestRequest, YouTubeKeywordDiscoveryRequest
 from ima.harvesters.youtube_data_api import YouTubeDataAPIHarvester
 from ima.observability.langfuse_hook import LangfuseHook
 from ima.providers.llm.anthropic_adapter import AnthropicAdapter
@@ -44,8 +50,8 @@ app.add_typer(evidence_app, name="evidence")
 app.add_typer(temporal_app, name="temporal")
 
 
-class OfflineClassifierProvider:
-    """Deterministic local fallback when no LLM credentials are configured."""
+class OfflineDevelopmentProvider:
+    """Deterministic local fallback when no live LLM credentials are configured."""
 
     provider_name = "offline"
 
@@ -68,10 +74,55 @@ class OfflineClassifierProvider:
         temperature: float = 0.7,
         max_tokens: int = 4096,
     ) -> LLMResponse:
-        """Generate a deterministic classifier output from the input payload."""
+        """Generate deterministic structured outputs for local development."""
 
         _ = (response_schema, temperature, max_tokens)
         payload = json.loads(messages[-1].content)
+        if response_schema is EvidenceBuilderOutput:
+            items: list[dict[str, object]] = []
+            if payload.get("bio"):
+                items.append(
+                    {
+                        "claim_text": payload["bio"],
+                        "source_uri": "bio",
+                        "source_type": "bio",
+                        "confidence": 0.65,
+                    }
+                )
+            for content in payload.get("recent_content", []):
+                items.append(
+                    {
+                        "claim_text": content.get("title")
+                        or content.get("caption")
+                        or "Recent creator content observed.",
+                        "source_uri": content["source_uri"],
+                        "source_type": content["source_type"],
+                        "confidence": max(content.get("sponsor_probability") or 0.55, 0.55),
+                    }
+                )
+            if not items:
+                items.append(
+                    {
+                        "claim_text": f"Creator {payload['creator_handle']} has limited evidence.",
+                        "source_uri": payload["metrics"].get(
+                            "metrics_source_uri",
+                            "evidence://offline/metrics",
+                        ),
+                        "source_type": "metric",
+                        "confidence": 0.5,
+                    }
+                )
+            content = json.dumps({"evidence_items": items})
+            return LLMResponse(
+                content=content,
+                model=model,
+                provider=self.provider_name,
+                input_tokens=140,
+                output_tokens=110,
+                cost_usd=Decimal("0.0002"),
+                raw_response={"content": content},
+            )
+
         text = " ".join(
             [
                 payload.get("bio", ""),
@@ -84,20 +135,37 @@ class OfflineClassifierProvider:
         sub_niches: list[str] = []
         if any(token in text for token in ("hyrox", "fitness", "workout", "running", "pilates")):
             niche = "fitness"
-            sub_niches = [token for token in ["hyrox", "running", "pilates", "nutrition"] if token in text]
+            sub_niches = [
+                token for token in ["hyrox", "running", "pilates", "nutrition"] if token in text
+            ]
         elif any(token in text for token in ("saas", "ai", "tech", "automation", "gadget")):
             niche = "tech"
-            sub_niches = [token for token in ["saas", "ai", "automation", "gadgets"] if token in text]
+            sub_niches = [
+                token for token in ["saas", "ai", "automation", "gadgets"] if token in text
+            ]
         elif any(token in text for token in ("recipe", "rezepte", "food", "meal prep", "pasta")):
             niche = "food"
             sub_niches = [token for token in ["recipes", "meal-prep", "nutrition"] if token in text]
-        elif any(token in text for token in ("lifestyle", "decor", "cafe", "morning routine", "wellness")):
+        elif any(
+            token in text for token in ("lifestyle", "decor", "cafe", "morning routine", "wellness")
+        ):
             niche = "lifestyle"
-            sub_niches = [token for token in ["wellness", "home-decor", "city-life", "routine"] if token in text]
+            sub_niches = [
+                token
+                for token in ["wellness", "home-decor", "city-life", "routine"]
+                if token in text
+            ]
 
-        language = "de" if any(token in text for token in ("wien", "deutsch", "ernaehrung", "heute")) else "en"
+        language = (
+            "de"
+            if any(token in text for token in ("wien", "deutsch", "ernaehrung", "heute"))
+            else "en"
+        )
         safety = 9
-        if any(token in text for token in ("politik", "political", "controvers", "kontroverse", "media luegen")):
+        if any(
+            token in text
+            for token in ("politik", "political", "controvers", "kontroverse", "media luegen")
+        ):
             safety = 2
         if any(token in text for token in ("explicit", "adult", "nsfw", "shock humor")):
             safety = 1
@@ -131,7 +199,7 @@ def _build_llm_providers() -> dict[str, object]:
     if settings.openai_api_key:
         providers["openai"] = OpenAIAdapter()
     if not providers:
-        providers["offline"] = OfflineClassifierProvider()
+        providers["offline"] = OfflineDevelopmentProvider()
     return providers
 
 
@@ -156,7 +224,12 @@ async def _run_classifier(input_file: Path) -> None:
 
 
 @run_agent_app.command("classifier")
-def run_classifier(input_file: Path = typer.Option(..., "--input-file", exists=True, readable=True)) -> None:
+def run_classifier(
+    input_file: Annotated[
+        Path,
+        typer.Option("--input-file", exists=True, readable=True),
+    ],
+) -> None:
     """Run the classifier agent against an input JSON file."""
 
     asyncio.run(_run_classifier(input_file))
@@ -203,6 +276,31 @@ async def _score_creator(handle: str, platform: str) -> None:
     async with get_session_factory()() as session:
         service = CreatorScoringService(session)
         result = await service.score_creator_by_handle(platform=platform, handle=handle)
+        await session.commit()
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
+@creator_app.command("classify")
+def classify_creator(
+    handle: str = typer.Option(..., "--handle"),
+    platform: str = typer.Option(..., "--platform"),
+) -> None:
+    """Run the classifier for one stored creator and persist `niche_labels`."""
+
+    asyncio.run(_classify_creator(handle=handle, platform=platform))
+
+
+async def _classify_creator(handle: str, platform: str) -> None:
+    """Load a creator, classify it, and persist the classifier output."""
+
+    async with get_session_factory()() as session:
+        service = CreatorClassificationService(
+            session=session,
+            llm_providers=_build_llm_providers(),
+            db_session_factory=get_session_factory(),
+            langfuse_hook=LangfuseHook(),
+        )
+        result = await service.classify_creator_by_handle(platform=platform, handle=handle)
         await session.commit()
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
 
@@ -261,14 +359,12 @@ async def _record_snapshot(
             CreatorGrowthSnapshotInput(
                 creator_id=str(creator.id),
                 captured_at=captured_at or datetime.now(UTC),
-                follower_count=follower_count,
+                followers=follower_count,
                 average_views_30d=average_views_30d,
                 average_likes_30d=average_likes_30d,
                 average_comments_30d=average_comments_30d,
                 engagement_rate_30d=(
-                    Decimal(str(engagement_rate_30d))
-                    if engagement_rate_30d is not None
-                    else None
+                    Decimal(str(engagement_rate_30d)) if engagement_rate_30d is not None else None
                 ),
                 source=source,
             )
@@ -289,7 +385,12 @@ async def _record_snapshot(
 
 
 @creator_app.command("ingest")
-def ingest_creator(input_file: Path = typer.Option(..., "--input-file", exists=True, readable=True)) -> None:
+def ingest_creator(
+    input_file: Annotated[
+        Path,
+        typer.Option("--input-file", exists=True, readable=True),
+    ],
+) -> None:
     """Ingest one creator payload from JSON, then snapshot and score it."""
 
     asyncio.run(_ingest_creator(input_file))
@@ -308,7 +409,10 @@ async def _ingest_creator(input_file: Path) -> None:
 
 @creator_app.command("import-source-batch")
 def import_source_batch(
-    input_file: Path = typer.Option(..., "--input-file", exists=True, readable=True),
+    input_file: Annotated[
+        Path,
+        typer.Option("--input-file", exists=True, readable=True),
+    ],
     via_temporal: bool = typer.Option(True, "--via-temporal/--direct"),
     workflow_prefix: str = typer.Option("creator-source-import", "--workflow-prefix"),
     task_queue: str = typer.Option(CREATOR_TASK_QUEUE, "--task-queue"),
@@ -364,6 +468,37 @@ def import_youtube_channel(
     )
 
 
+@creator_app.command("discover-youtube")
+def discover_youtube(
+    keywords: str = typer.Option(..., "--keywords"),
+    language: str | None = typer.Option(None, "--language"),
+    region: str | None = typer.Option(None, "--region"),
+    min_subscribers: int | None = typer.Option(None, "--min-subscribers"),
+    max_subscribers: int | None = typer.Option(None, "--max-subscribers"),
+    max_results_per_keyword: int = typer.Option(5, "--max-results-per-keyword"),
+    max_videos: int = typer.Option(5, "--max-videos"),
+    via_temporal: bool = typer.Option(True, "--via-temporal/--direct"),
+    workflow_prefix: str = typer.Option("youtube-discovery", "--workflow-prefix"),
+    task_queue: str = typer.Option(CREATOR_TASK_QUEUE, "--task-queue"),
+) -> None:
+    """Discover YouTube channels from keywords and send them through canonical ingest."""
+
+    asyncio.run(
+        _discover_youtube(
+            keywords=keywords,
+            language=language,
+            region=region,
+            min_subscribers=min_subscribers,
+            max_subscribers=max_subscribers,
+            max_results_per_keyword=max_results_per_keyword,
+            max_videos=max_videos,
+            via_temporal=via_temporal,
+            workflow_prefix=workflow_prefix,
+            task_queue=task_queue,
+        )
+    )
+
+
 async def _import_youtube_channel(
     channel_id: str,
     max_videos: int,
@@ -390,6 +525,44 @@ async def _import_youtube_channel(
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
 
 
+async def _discover_youtube(
+    *,
+    keywords: str,
+    language: str | None,
+    region: str | None,
+    min_subscribers: int | None,
+    max_subscribers: int | None,
+    max_results_per_keyword: int,
+    max_videos: int,
+    via_temporal: bool,
+    workflow_prefix: str,
+    task_queue: str,
+) -> None:
+    """Discover channels by keywords, then route them into the canonical import path."""
+
+    parsed_keywords = [keyword.strip() for keyword in keywords.split(",") if keyword.strip()]
+    request = YouTubeKeywordDiscoveryRequest(
+        keywords=parsed_keywords,
+        language=language,
+        region=region,
+        min_subscribers=min_subscribers,
+        max_subscribers=max_subscribers,
+        max_results_per_keyword=max_results_per_keyword,
+        max_videos=max_videos,
+        source_labels=["youtube_keyword_discovery"],
+    )
+    harvested_records = await YouTubeDataAPIHarvester().discover_channels(request)
+    result = await CreatorSourceImportService().import_records(
+        harvested_records,
+        batch_source="youtube_search",
+        batch_id="-".join(parsed_keywords[:3]) if parsed_keywords else "youtube-search",
+        via_temporal=via_temporal,
+        workflow_prefix=workflow_prefix,
+        task_queue=task_queue,
+    )
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
 @evidence_app.command("build-creator")
 def build_creator_evidence(
     handle: str = typer.Option(..., "--handle"),
@@ -403,8 +576,14 @@ def build_creator_evidence(
 async def _build_creator_evidence(handle: str, platform: str) -> None:
     """Execute the local evidence builder for one creator handle."""
 
+    executor = AgentExecutor(
+        contract=EVIDENCE_BUILDER_CONTRACT,
+        llm_providers=_build_llm_providers(),
+        db_session_factory=get_session_factory(),
+        langfuse_hook=LangfuseHook(),
+    )
     async with get_session_factory()() as session:
-        service = EvidenceBuilderService(session)
+        service = EvidenceBuilderService(session, agent_executor=executor)
         result = await service.build_creator_evidence_by_handle(platform=platform, handle=handle)
         await session.commit()
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=True))
@@ -421,7 +600,10 @@ def run_creator_worker_command(
 
 @temporal_app.command("ingest-creator")
 def ingest_creator_workflow(
-    input_file: Path = typer.Option(..., "--input-file", exists=True, readable=True),
+    input_file: Annotated[
+        Path,
+        typer.Option("--input-file", exists=True, readable=True),
+    ],
     workflow_id: str | None = typer.Option(None, "--workflow-id"),
     task_queue: str = typer.Option(CREATOR_TASK_QUEUE, "--task-queue"),
 ) -> None:

@@ -1,0 +1,108 @@
+- case_id: sponsor_heavy_creator
+  input:
+    creator_handle: sponsorheavy
+    platform: youtube
+    bio: "Fitness creator from Vienna with coaching offers and race partnerships."
+    metrics:
+      followers: 210000
+      avg_views_30d: 18000
+      avg_engagement_30d: 0.045
+    existing_brands: ["Red Bull", "MyProtein"]
+    recent_content:
+      - title: "Race prep with MyProtein fuel plan"
+        caption: "This training block is powered by MyProtein gels and recovery shakes."
+        source_uri: "https://youtube.com/watch?v=sponsor-1"
+        source_type: "youtube_video"
+        hashtags: ["hyrox", "myprotein", "training"]
+        detected_brands: ["MyProtein"]
+        sponsor_probability: 0.92
+      - title: "How I recover after Hyrox"
+        caption: "Red Bull event vlog with race weekend recovery routines."
+        source_uri: "https://youtube.com/watch?v=sponsor-2"
+        source_type: "youtube_video"
+        hashtags: ["hyrox", "recovery", "redbull"]
+        detected_brands: ["Red Bull"]
+        sponsor_probability: 0.84
+  expected:
+    min_items: 3
+    min_confidence: 0.8
+    required_source_types: ["youtube_video"]
+- case_id: low_content_creator
+  input:
+    creator_handle: lowcontent
+    platform: instagram
+    bio: "Food creator sharing quick recipes."
+    metrics:
+      followers: 115000
+      avg_views_30d: 7000
+      avg_engagement_30d: 0.031
+    existing_brands: []
+    recent_content:
+      - title: null
+        caption: "Quick vegan breakfast bowl."
+        source_uri: "https://instagram.com/p/low-1"
+        source_type: "instagram_post"
+        hashtags: ["vegan", "breakfast"]
+        detected_brands: []
+        sponsor_probability: 0.15
+  expected:
+    min_items: 1
+    min_confidence: 0.45
+    required_source_types: ["instagram_post"]
+- case_id: bio_only_creator
+  input:
+    creator_handle: bioonly
+    platform: tiktok
+    bio: "Pilates and wellness creator from Berlin."
+    metrics:
+      followers: 130000
+    existing_brands: []
+    recent_content: []
+  expected:
+    min_items: 1
+    min_confidence: 0.4
+    required_source_types: ["bio"]
+- case_id: fitness_creator
+  input:
+    creator_handle: fitcreator
+    platform: youtube
+    bio: "Hyrox athlete and coach."
+    metrics:
+      followers: 180000
+      avg_views_30d: 15000
+      avg_engagement_30d: 0.042
+    existing_brands: []
+    recent_content:
+      - title: "Hyrox interval session"
+        caption: "Intervals, sled pushes and race simulation."
+        source_uri: "https://youtube.com/watch?v=fit-1"
+        source_type: "youtube_video"
+        hashtags: ["hyrox", "intervals", "fitness"]
+        detected_brands: []
+        sponsor_probability: 0.10
+  expected:
+    min_items: 2
+    min_confidence: 0.6
+    required_source_types: ["youtube_video"]
+- case_id: ambiguous_creator
+  input:
+    creator_handle: ambiguous
+    platform: youtube
+    bio: "Lifestyle creator documenting travel and routines."
+    metrics:
+      followers: 155000
+      avg_views_30d: 9000
+      avg_engagement_30d: 0.027
+    existing_brands: []
+    recent_content:
+      - title: "Morning routine"
+        caption: "A calm day in Vienna with a few favorites."
+        source_uri: "https://youtube.com/watch?v=amb-1"
+        source_type: "youtube_video"
+        hashtags: ["routine", "vienna", "favorites"]
+        detected_brands: []
+        sponsor_probability: 0.38
+  expected:
+    min_items: 1
+    min_confidence: 0.4
+    required_source_types: ["youtube_video"]

@@ -158,7 +158,9 @@ class AnthropicAdapter(LLMProvider):
                 raise LLMInvalidResponseError("Anthropic lieferte keinen tool_use-Block zurueck.")
             content = json.dumps(tool_block["input"])
         else:
-            text_chunks = [block.get("text", "") for block in content_blocks if block.get("type") == "text"]
+            text_chunks = [
+                block.get("text", "") for block in content_blocks if block.get("type") == "text"
+            ]
             content = "\n".join(chunk for chunk in text_chunks if chunk).strip()
             if not content:
                 raise LLMInvalidResponseError("Anthropic lieferte keinen Textinhalt zurueck.")

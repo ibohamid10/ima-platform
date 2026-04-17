@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, datetime, time, timezone
+from datetime import UTC, datetime, time
 from decimal import Decimal
 from typing import Any
 
@@ -75,7 +75,7 @@ class AgentExecutor:
                 output_json=None,
                 validation_status=ValidationStatus.PENDING.value,
                 validation_attempts=1,
-                started_at=datetime.now(timezone.utc),
+                started_at=datetime.now(UTC),
                 trace_id=trace.trace_id,
             )
             session.add(run_record)
@@ -97,7 +97,7 @@ class AgentExecutor:
                         model=model,
                         messages=messages,
                     )
-                    now = datetime.now(timezone.utc)
+                    now = datetime.now(UTC)
                     run_record.provider = provider_name
                     run_record.model = model
                     run_record.output_json = output_model.model_dump(mode="json")
@@ -106,7 +106,9 @@ class AgentExecutor:
                     run_record.input_tokens = response.input_tokens
                     run_record.output_tokens = response.output_tokens
                     run_record.cost_usd = response.cost_usd
-                    run_record.latency_ms = int((now - run_record.started_at).total_seconds() * 1000)
+                    run_record.latency_ms = int(
+                        (now - run_record.started_at).total_seconds() * 1000
+                    )
                     run_record.completed_at = now
                     run_record.error_message = None
                     await session.commit()
@@ -135,12 +137,14 @@ class AgentExecutor:
                     generation.finish()
                     continue
                 except LLMSchemaValidationError as exc:
-                    now = datetime.now(timezone.utc)
+                    now = datetime.now(UTC)
                     run_record.provider = provider_name
                     run_record.model = model
                     run_record.validation_status = ValidationStatus.SCHEMA_FAILED.value
                     run_record.validation_attempts = 2
-                    run_record.latency_ms = int((now - run_record.started_at).total_seconds() * 1000)
+                    run_record.latency_ms = int(
+                        (now - run_record.started_at).total_seconds() * 1000
+                    )
                     run_record.completed_at = now
                     run_record.error_message = str(exc)
                     await session.commit()
@@ -150,7 +154,7 @@ class AgentExecutor:
                     self.langfuse_hook.flush()
                     raise
 
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             error_message = "; ".join(provider_error_messages) or "Kein Provider war verfuegbar."
             run_record.validation_status = ValidationStatus.PROVIDER_ERROR.value
             run_record.latency_ms = int((now - run_record.started_at).total_seconds() * 1000)

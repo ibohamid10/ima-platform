@@ -7,8 +7,15 @@ from decimal import Decimal
 import respx
 from httpx import Response
 
-from ima.harvesters.exceptions import YouTubeChannelNotFoundError, YouTubeConfigurationError
-from ima.harvesters.schemas import YouTubeChannelHarvestRequest
+from ima.harvesters.exceptions import (
+    YouTubeChannelNotFoundError,
+    YouTubeConfigurationError,
+    YouTubeQuotaExceededError,
+)
+from ima.harvesters.schemas import (
+    YouTubeChannelHarvestRequest,
+    YouTubeKeywordDiscoveryRequest,
+)
 from ima.harvesters.youtube_data_api import YouTubeDataAPIHarvester
 
 
@@ -27,7 +34,7 @@ async def test_youtube_harvester_requires_api_key() -> None:
 
 @respx.mock
 async def test_youtube_harvester_builds_harvested_creator_record() -> None:
-    """The harvester should compose channel, playlist, and video resources into one source record."""
+    """The harvester should combine channel, playlist, and video data into one record."""
 
     base_url = "https://example.test"
     harvester = YouTubeDataAPIHarvester(api_key="yt-key", base_url=base_url)
@@ -122,8 +129,8 @@ async def test_youtube_harvester_builds_harvested_creator_record() -> None:
     assert result.platform == "youtube"
     assert result.handle == "testcreator"
     assert result.external_id == "UC123"
-    assert result.follower_count == 210000
-    assert result.primary_language == "en"
+    assert result.followers == 210000
+    assert result.language == "en"
     assert result.metric_snapshot is not None
     assert result.metric_snapshot.average_views_30d == 15000
     assert result.metric_snapshot.average_likes_30d == 900
@@ -148,3 +155,123 @@ async def test_youtube_harvester_raises_when_channel_missing() -> None:
         return
 
     raise AssertionError("Expected YouTubeChannelNotFoundError for an empty channel response.")
+
+
+@respx.mock
+async def test_youtube_harvester_discovers_channels_from_keywords() -> None:
+    """Keyword discovery should resolve channel IDs and return harvested creator records."""
+
+    base_url = "https://example.test"
+    harvester = YouTubeDataAPIHarvester(api_key="yt-key", base_url=base_url)
+
+    respx.get(f"{base_url}/search").mock(
+        return_value=Response(
+            200,
+            json={
+                "items": [
+                    {"id": {"channelId": "UCDISCOVER1"}},
+                    {"id": {"channelId": "UCDISCOVER2"}},
+                ]
+            },
+        )
+    )
+    respx.get(f"{base_url}/channels").mock(
+        return_value=Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": "UCDISCOVER1",
+                        "snippet": {
+                            "title": "Discovery One",
+                            "description": "Hyrox creator from Vienna.",
+                            "customUrl": "@discoveryone",
+                        },
+                        "statistics": {"subscriberCount": "150000"},
+                        "contentDetails": {"relatedPlaylists": {"uploads": "UUDISCOVER1"}},
+                        "brandingSettings": {"channel": {"defaultLanguage": "de"}},
+                    },
+                    {
+                        "id": "UCDISCOVER2",
+                        "snippet": {
+                            "title": "Discovery Two",
+                            "description": "Tiny creator.",
+                            "customUrl": "@discoverytwo",
+                        },
+                        "statistics": {"subscriberCount": "50000"},
+                        "contentDetails": {"relatedPlaylists": {"uploads": "UUDISCOVER2"}},
+                        "brandingSettings": {"channel": {"defaultLanguage": "de"}},
+                    },
+                ]
+            },
+        )
+    )
+    respx.get(f"{base_url}/playlistItems").mock(
+        return_value=Response(
+            200,
+            json={"items": [{"contentDetails": {"videoId": "vid-discovery"}}]},
+        )
+    )
+    respx.get(f"{base_url}/videos").mock(
+        return_value=Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": "vid-discovery",
+                        "snippet": {
+                            "title": "Discovery video",
+                            "description": "Training recap.",
+                            "publishedAt": "2026-04-16T08:00:00Z",
+                            "tags": ["hyrox", "training"],
+                        },
+                        "statistics": {
+                            "viewCount": "11000",
+                            "likeCount": "700",
+                            "commentCount": "55",
+                        },
+                    }
+                ]
+            },
+        )
+    )
+
+    results = await harvester.discover_channels(
+        YouTubeKeywordDiscoveryRequest(
+            keywords=["hyrox training"],
+            language="de",
+            min_subscribers=100000,
+            max_results_per_keyword=5,
+        )
+    )
+
+    assert len(results) == 1
+    assert results[0].external_id == "UCDISCOVER1"
+    assert results[0].handle == "discoveryone"
+
+
+@respx.mock
+async def test_youtube_harvester_retries_and_raises_on_quota_limit() -> None:
+    """Quota exhaustion should retry with backoff and then raise a domain error."""
+
+    base_url = "https://example.test"
+    harvester = YouTubeDataAPIHarvester(
+        api_key="yt-key",
+        base_url=base_url,
+        max_retries=2,
+        backoff_base_seconds=0,
+    )
+
+    respx.get(f"{base_url}/channels").mock(
+        return_value=Response(
+            429,
+            json={"error": {"errors": [{"reason": "rateLimitExceeded"}]}},
+        )
+    )
+
+    try:
+        await harvester.harvest_channel(YouTubeChannelHarvestRequest(channel_id="UC429"))
+    except YouTubeQuotaExceededError:
+        return
+
+    raise AssertionError("Expected YouTubeQuotaExceededError after retry exhaustion.")

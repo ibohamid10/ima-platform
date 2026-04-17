@@ -15,3 +15,7 @@ class YouTubeDataAPIError(SourceHarvesterError):
 
 class YouTubeChannelNotFoundError(YouTubeDataAPIError):
     """Raised when a requested YouTube channel cannot be resolved."""
+
+
+class YouTubeQuotaExceededError(YouTubeDataAPIError):
+    """Raised when the YouTube API quota or rate limit is exhausted."""

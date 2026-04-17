@@ -10,14 +10,15 @@ import httpx
 from ima.config import settings
 from ima.providers.mail.base import (
     InboundMessage,
-    MailProvider,
     MailboxHealth,
+    MailProvider,
     OutboundMessage,
     SendResult,
 )
 from ima.providers.mail.exceptions import MailProviderUnavailableError, MailRateLimitError
 
-# NOTE: Echte Integration wird in Woche 6 live. Adapter dient in Woche 1 primaer als Interface-Validation.
+# NOTE: Echte Integration wird in Woche 6 live.
+# Adapter dient in Woche 1 primaer als Interface-Validation.
 
 
 class InstantlyAdapter(MailProvider):
@@ -42,7 +43,8 @@ class InstantlyAdapter(MailProvider):
 
         if not self.api_key:
             raise NotImplementedError(
-                "INSTANTLY_API_KEY ist nicht gesetzt. Die Live-Integration wird in Woche 6 aktiviert."
+                "INSTANTLY_API_KEY ist nicht gesetzt. "
+                "Die Live-Integration wird in Woche 6 aktiviert."
             )
 
         payload = {
@@ -66,7 +68,9 @@ class InstantlyAdapter(MailProvider):
         """Fetch replies for a mailbox after the provided timestamp."""
 
         if not self.api_key:
-            raise NotImplementedError("Reply-Fetching wird in Woche 6 mit echter API-Doku aktiviert.")
+            raise NotImplementedError(
+                "Reply-Fetching wird in Woche 6 mit echter API-Doku aktiviert."
+            )
 
         params: dict[str, Any] = {"timestamp_created_gt": since.isoformat()}
         if mailbox is not None:
@@ -90,7 +94,9 @@ class InstantlyAdapter(MailProvider):
         """Return a simplified mailbox health record."""
 
         if not self.api_key:
-            raise NotImplementedError("Mailbox-Health wird in Woche 6 mit echter API-Doku aktiviert.")
+            raise NotImplementedError(
+                "Mailbox-Health wird in Woche 6 mit echter API-Doku aktiviert."
+            )
 
         raw_response = await self._request("GET", "/accounts", params={"search": mailbox})
         first_item = raw_response.get("items", [{}])[0]
@@ -112,7 +118,9 @@ class InstantlyAdapter(MailProvider):
         """List known sending mailboxes from Instantly."""
 
         if not self.api_key:
-            raise NotImplementedError("Mailbox-Listing wird in Woche 6 mit echter API-Doku aktiviert.")
+            raise NotImplementedError(
+                "Mailbox-Listing wird in Woche 6 mit echter API-Doku aktiviert."
+            )
 
         raw_response = await self._request("GET", "/accounts")
         return [item["email"] for item in raw_response.get("items", []) if "email" in item]
@@ -134,7 +142,9 @@ class InstantlyAdapter(MailProvider):
             "Content-Type": "application/json",
         }
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout) as client:
-            response = await client.request(method, path, headers=headers, json=payload, params=params)
+            response = await client.request(
+                method, path, headers=headers, json=payload, params=params
+            )
 
         if response.status_code == 429:
             raise MailRateLimitError("Instantly rate limit reached.")
