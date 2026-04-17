@@ -22,6 +22,8 @@ from ima.creators.scoring import CreatorScoringService
 from ima.db.models import Creator
 from ima.db.session import get_session_factory
 from ima.harvesters.pipeline import CreatorSourceImportService
+from ima.harvesters.schemas import YouTubeChannelHarvestRequest
+from ima.harvesters.youtube_data_api import YouTubeDataAPIHarvester
 from ima.observability.langfuse_hook import LangfuseHook
 from ima.providers.llm.anthropic_adapter import AnthropicAdapter
 from ima.providers.llm.base import LLMMessage, LLMResponse
@@ -331,6 +333,53 @@ async def _import_source_batch(
     service = CreatorSourceImportService()
     result = await service.import_fixture_file(
         input_file,
+        via_temporal=via_temporal,
+        workflow_prefix=workflow_prefix,
+        task_queue=task_queue,
+    )
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
+@creator_app.command("import-youtube-channel")
+def import_youtube_channel(
+    channel_id: str = typer.Option(..., "--channel-id"),
+    max_videos: int = typer.Option(5, "--max-videos"),
+    via_temporal: bool = typer.Option(True, "--via-temporal/--direct"),
+    workflow_prefix: str = typer.Option("youtube-channel", "--workflow-prefix"),
+    task_queue: str = typer.Option(CREATOR_TASK_QUEUE, "--task-queue"),
+) -> None:
+    """Harvest one YouTube channel by channel ID and import it through canonical ingest."""
+
+    asyncio.run(
+        _import_youtube_channel(
+            channel_id=channel_id,
+            max_videos=max_videos,
+            via_temporal=via_temporal,
+            workflow_prefix=workflow_prefix,
+            task_queue=task_queue,
+        )
+    )
+
+
+async def _import_youtube_channel(
+    channel_id: str,
+    max_videos: int,
+    via_temporal: bool,
+    workflow_prefix: str,
+    task_queue: str,
+) -> None:
+    """Harvest one YouTube channel from the live API and send it into source import."""
+
+    request = YouTubeChannelHarvestRequest(
+        channel_id=channel_id,
+        max_videos=max_videos,
+        source_labels=["youtube_live_import"],
+    )
+    harvested_record = await YouTubeDataAPIHarvester().harvest_channel(request)
+    result = await CreatorSourceImportService().import_records(
+        [harvested_record],
+        batch_source="youtube_data_api",
+        batch_id=channel_id,
         via_temporal=via_temporal,
         workflow_prefix=workflow_prefix,
         task_queue=task_queue,

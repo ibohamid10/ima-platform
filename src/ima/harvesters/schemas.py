@@ -66,6 +66,14 @@ class HarvestFixtureBatch(BaseModel):
     creators: list[HarvestedCreatorRecord]
 
 
+class YouTubeChannelHarvestRequest(BaseModel):
+    """Structured request for harvesting one YouTube channel by stable channel ID."""
+
+    channel_id: str
+    max_videos: int = Field(default=5, ge=1, le=50)
+    source_labels: list[str] = Field(default_factory=list)
+
+
 class CreatorSourceImportResult(BaseModel):
     """Structured result for one batch import through the source pipeline."""
 
@@ -76,4 +84,3 @@ class CreatorSourceImportResult(BaseModel):
     via_temporal: bool
     workflow_ids: list[str] = Field(default_factory=list)
     results: list[CreatorIngestResult] = Field(default_factory=list)
-

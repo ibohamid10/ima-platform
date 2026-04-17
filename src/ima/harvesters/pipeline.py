@@ -15,7 +15,7 @@ from ima.creators.ingest import CreatorIngestService
 from ima.creators.schemas import CreatorIngestInput, CreatorIngestResult
 from ima.db.session import get_session_factory
 from ima.harvesters.fixture_harvester import CreatorEnricherStub, FixtureCreatorHarvester
-from ima.harvesters.schemas import CreatorSourceImportResult
+from ima.harvesters.schemas import CreatorSourceImportResult, HarvestedCreatorRecord
 from ima.temporal.client import get_temporal_client
 from ima.temporal.constants import CREATOR_INGEST_WORKFLOW, CREATOR_TASK_QUEUE
 
@@ -67,7 +67,30 @@ class CreatorSourceImportService:
         """Load one fixture batch and send every record through canonical ingest."""
 
         batch = await self.harvester.harvest_from_file(input_file)
-        payloads = [await self.enricher.enrich(record) for record in batch.creators]
+        return await self.import_records(
+            batch.creators,
+            batch_source=batch.source,
+            batch_id=batch.batch_id,
+            via_temporal=via_temporal,
+            task_queue=task_queue,
+            workflow_prefix=workflow_prefix,
+            workflow_run_token=workflow_run_token,
+        )
+
+    async def import_records(
+        self,
+        records: list[HarvestedCreatorRecord],
+        *,
+        batch_source: str,
+        batch_id: str | None = None,
+        via_temporal: bool = True,
+        task_queue: str = CREATOR_TASK_QUEUE,
+        workflow_prefix: str = "creator-source-import",
+        workflow_run_token: str | None = None,
+    ) -> CreatorSourceImportResult:
+        """Normalize harvested records and send them through canonical ingest."""
+
+        payloads = [await self.enricher.enrich(record) for record in records]
         results: list[CreatorIngestResult] = []
         workflow_ids: list[str] = []
 
@@ -100,9 +123,9 @@ class CreatorSourceImportService:
                     results.append(result)
 
         return CreatorSourceImportResult(
-            batch_source=batch.source,
-            batch_id=batch.batch_id,
-            total_records=len(batch.creators),
+            batch_source=batch_source,
+            batch_id=batch_id,
+            total_records=len(records),
             imported_count=len(results),
             via_temporal=via_temporal,
             workflow_ids=workflow_ids,
