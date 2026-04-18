@@ -1,0 +1,29 @@
+niche_id: productivity
+display_name: "Productivity & Tools"
+discovery:
+  youtube_keywords:
+    - "productivity setup"
+    - "notion workflow"
+    - "second brain"
+    - "desk setup"
+    - "time management tools"
+  hashtag_seeds:
+    - "#productivity"
+    - "#notion"
+    - "#obsidian"
+    - "#desksetup"
+    - "#toolstack"
+  min_subscribers: 50000
+  max_subscribers: 1000000
+  languages: ["en", "de"]
+  regions: ["US", "DE", "AT", "CH", "GB"]
+scoring:
+  niche_fit:
+    primary_labels: ["productivity", "tech", "tools"]
+    secondary_labels: ["notion", "obsidian", "time-management", "desk-setup", "workflows"]
+    primary_weight: 0.6
+    secondary_weight: 0.4
+brand_signals:
+  categories: ["SaaS", "productivity software", "desk accessories", "stationery", "digital tools"]
+  keywords_creator_programs: ["affiliate", "ambassador", "creator program", "partner"]
+  keywords_hiring: ["influencer marketing", "creator partnerships", "content partnerships"]

@@ -94,6 +94,14 @@ class QualificationConfig(BaseModel):
     max_followers: int = 1000000
 
 
+class BrandSpendIntentConfig(BaseModel):
+    """Weights for the phase-1 brand spend-intent score."""
+
+    branded_content_weight: float = 0.40
+    hiring_signal_weight: float = 0.35
+    creator_program_weight: float = 0.25
+
+
 class ScoringConfig(BaseModel):
     """Top-level configurable scoring defaults."""
 
@@ -105,6 +113,7 @@ class ScoringConfig(BaseModel):
     fraud: FraudConfig = Field(default_factory=FraudConfig)
     evidence_coverage: EvidenceCoverageConfig = Field(default_factory=EvidenceCoverageConfig)
     qualification: QualificationConfig = Field(default_factory=QualificationConfig)
+    brand_spend_intent: BrandSpendIntentConfig = Field(default_factory=BrandSpendIntentConfig)
 
 
 @lru_cache(maxsize=1)

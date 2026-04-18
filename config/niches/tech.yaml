@@ -1,0 +1,29 @@
+niche_id: tech
+display_name: "Tech, SaaS & Dev Tools"
+discovery:
+  youtube_keywords:
+    - "ai tools"
+    - "saas workflow"
+    - "developer tools"
+    - "coding setup"
+    - "best gadgets for work"
+  hashtag_seeds:
+    - "#aitools"
+    - "#saas"
+    - "#devtools"
+    - "#codingsetup"
+    - "#techreview"
+  min_subscribers: 50000
+  max_subscribers: 1000000
+  languages: ["en", "de"]
+  regions: ["US", "DE", "AT", "CH", "GB"]
+scoring:
+  niche_fit:
+    primary_labels: ["tech", "saas", "tools"]
+    secondary_labels: ["ai", "developer-tools", "gadgets", "automation", "workflows"]
+    primary_weight: 0.6
+    secondary_weight: 0.4
+brand_signals:
+  categories: ["SaaS", "developer tools", "AI software", "consumer electronics", "gadgets"]
+  keywords_creator_programs: ["affiliate", "ambassador", "creator program", "partner program", "collab"]
+  keywords_hiring: ["influencer marketing", "creator partnerships", "content partnerships"]

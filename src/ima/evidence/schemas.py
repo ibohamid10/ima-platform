@@ -42,3 +42,15 @@ class EvidenceBuildResult(BaseModel):
     artifact_count: int
     artifact_uris: list[str]
     evidence_items: list[EvidenceItemResult]
+
+
+class BrandEvidenceBuildResult(BaseModel):
+    """Summary of one brand evidence build run."""
+
+    brand_id: str
+    domain: str
+    built_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    evidence_count: int
+    artifact_count: int
+    artifact_uris: list[str]
+    evidence_items: list[EvidenceItemResult]

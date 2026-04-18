@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    ima_env: str = Field(default="local", alias="IMA_ENV")
     postgres_user: str = Field(default="ima", alias="POSTGRES_USER")
     postgres_password: str = Field(default="ima", alias="POSTGRES_PASSWORD")
     postgres_db: str = Field(default="ima", alias="POSTGRES_DB")
@@ -32,11 +33,18 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     instantly_api_key: str | None = Field(default=None, alias="INSTANTLY_API_KEY")
+    hunter_api_key: str | None = Field(default=None, alias="HUNTER_API_KEY")
+    meta_access_token: str | None = Field(default=None, alias="META_ACCESS_TOKEN")
     youtube_data_api_key: str | None = Field(default=None, alias="YOUTUBE_DATA_API_KEY")
     youtube_data_api_base_url: str = Field(
         default="https://www.googleapis.com/youtube/v3",
         alias="YOUTUBE_DATA_API_BASE_URL",
     )
+    meta_graph_api_base_url: str = Field(
+        default="https://graph.facebook.com/v23.0",
+        alias="META_GRAPH_API_BASE_URL",
+    )
+    niches_config_dir: str = Field(default="config/niches", alias="NICHES_CONFIG_DIR")
     evidence_storage_backend: str = Field(default="local", alias="EVIDENCE_STORAGE_BACKEND")
     evidence_storage_root: str = Field(default="data/evidence", alias="EVIDENCE_STORAGE_ROOT")
     evidence_storage_bucket: str = Field(
@@ -79,7 +87,13 @@ class Settings(BaseSettings):
             raise ValueError("DATABASE_URL muss mit postgresql+asyncpg:// beginnen.")
         return value
 
-    @field_validator("redis_url", "qdrant_url", "langfuse_host", "youtube_data_api_base_url")
+    @field_validator(
+        "redis_url",
+        "qdrant_url",
+        "langfuse_host",
+        "youtube_data_api_base_url",
+        "meta_graph_api_base_url",
+    )
     @classmethod
     def validate_urls(cls, value: str) -> str:
         """Validate that URLs include at least a scheme and host."""
@@ -137,8 +151,12 @@ class Settings(BaseSettings):
             raise ValueError("OPENAI_API_KEY fehlt fuer den OpenAI-Provider.")
         if provider_name == "instantly" and not self.instantly_api_key:
             raise ValueError("INSTANTLY_API_KEY fehlt fuer den Instantly-Provider.")
+        if provider_name == "hunter" and not self.hunter_api_key:
+            raise ValueError("HUNTER_API_KEY fehlt fuer den Hunter-Provider.")
         if provider_name == "youtube_data_api" and not self.youtube_data_api_key:
             raise ValueError("YOUTUBE_DATA_API_KEY fehlt fuer den YouTube-Data-API-Provider.")
+        if provider_name == "meta" and not self.meta_access_token:
+            raise ValueError("META_ACCESS_TOKEN fehlt fuer den Meta-Provider.")
 
 
 @lru_cache(maxsize=1)

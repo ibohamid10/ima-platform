@@ -61,3 +61,7 @@ qualification:
   min_evidence_coverage_score: 0.6
   min_followers: 100000
   max_followers: 1000000
+brand_spend_intent:
+  branded_content_weight: 0.4
+  hiring_signal_weight: 0.35
+  creator_program_weight: 0.25

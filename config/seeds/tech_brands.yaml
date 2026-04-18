@@ -1,0 +1,60 @@
+- name: Raycast
+  domain: raycast.com
+  category: SaaS
+  niche_ids: [tech, productivity]
+  geo_markets: [US, DE, GB]
+- name: Vercel
+  domain: vercel.com
+  category: SaaS
+  niche_ids: [tech]
+  geo_markets: [US, DE, GB]
+- name: Railway
+  domain: railway.com
+  category: SaaS
+  niche_ids: [tech]
+  geo_markets: [US, GB]
+- name: Cursor
+  domain: cursor.com
+  category: AI Software
+  niche_ids: [tech]
+  geo_markets: [US, DE, GB]
+- name: Warp
+  domain: warp.dev
+  category: Developer Tools
+  niche_ids: [tech]
+  geo_markets: [US, DE, GB]
+- name: Arc Browser
+  domain: arc.net
+  category: Consumer Software
+  niche_ids: [tech, productivity]
+  geo_markets: [US, DE, GB]
+- name: Sentry
+  domain: sentry.io
+  category: Developer Tools
+  niche_ids: [tech]
+  geo_markets: [US, DE, GB]
+- name: Retool
+  domain: retool.com
+  category: SaaS
+  niche_ids: [tech]
+  geo_markets: [US, DE, GB]
+- name: Anthropic
+  domain: anthropic.com
+  category: AI Software
+  niche_ids: [tech]
+  geo_markets: [US, GB]
+- name: OpenAI
+  domain: openai.com
+  category: AI Software
+  niche_ids: [tech]
+  geo_markets: [US, DE, GB]
+- name: Framework
+  domain: frame.work
+  category: Consumer Electronics
+  niche_ids: [tech]
+  geo_markets: [US, DE, GB]
+- name: Elgato
+  domain: elgato.com
+  category: Creator Hardware
+  niche_ids: [tech]
+  geo_markets: [US, DE, GB]

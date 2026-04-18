@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Annotated
+from uuid import UUID
 
 import typer
 from pydantic import BaseModel
@@ -20,17 +21,22 @@ from ima.agents.evidence_builder.contract import (
     EvidenceBuilderOutput,
 )
 from ima.agents.executor import AgentExecutor
+from ima.brands.enricher import BrandEnricher
+from ima.brands.seeder import BrandSeeder
+from ima.brands.service import BrandService
+from ima.brands.spend_intent import BrandSpendIntentScorer
 from ima.config import settings
 from ima.creators.classification import CreatorClassificationService
 from ima.creators.ingest import CreatorIngestService
 from ima.creators.schemas import CreatorGrowthSnapshotInput, CreatorIngestInput, CreatorIngestResult
 from ima.creators.scoring import CreatorScoringService
-from ima.db.models import Creator
+from ima.db.models import Brand, Creator
 from ima.db.session import get_session_factory
 from ima.evidence.builder import EvidenceBuilderService
 from ima.harvesters.pipeline import CreatorSourceImportService
 from ima.harvesters.schemas import YouTubeChannelHarvestRequest, YouTubeKeywordDiscoveryRequest
 from ima.harvesters.youtube_data_api import YouTubeDataAPIHarvester
+from ima.niches import get_niche_registry
 from ima.observability.langfuse_hook import LangfuseHook
 from ima.providers.llm.anthropic_adapter import AnthropicAdapter
 from ima.providers.llm.base import LLMMessage, LLMResponse
@@ -42,10 +48,12 @@ from ima.temporal.worker import run_creator_worker
 app = typer.Typer(help="CLI for local IMA agent execution.")
 run_agent_app = typer.Typer(help="Run a specific agent contract.")
 creator_app = typer.Typer(help="Creator growth tracking and scoring tools.")
+brand_app = typer.Typer(help="Brand seeding, enrichment, and spend-intent tools.")
 evidence_app = typer.Typer(help="Evidence building and evidence storage tools.")
 temporal_app = typer.Typer(help="Temporal worker and workflow tools.")
 app.add_typer(run_agent_app, name="run-agent")
 app.add_typer(creator_app, name="creators")
+app.add_typer(brand_app, name="brands")
 app.add_typer(evidence_app, name="evidence")
 app.add_typer(temporal_app, name="temporal")
 
@@ -470,7 +478,8 @@ def import_youtube_channel(
 
 @creator_app.command("discover-youtube")
 def discover_youtube(
-    keywords: str = typer.Option(..., "--keywords"),
+    keywords: str | None = typer.Option(None, "--keywords"),
+    niche: str | None = typer.Option(None, "--niche"),
     language: str | None = typer.Option(None, "--language"),
     region: str | None = typer.Option(None, "--region"),
     min_subscribers: int | None = typer.Option(None, "--min-subscribers"),
@@ -486,6 +495,7 @@ def discover_youtube(
     asyncio.run(
         _discover_youtube(
             keywords=keywords,
+            niche=niche,
             language=language,
             region=region,
             min_subscribers=min_subscribers,
@@ -527,7 +537,8 @@ async def _import_youtube_channel(
 
 async def _discover_youtube(
     *,
-    keywords: str,
+    keywords: str | None,
+    niche: str | None,
     language: str | None,
     region: str | None,
     min_subscribers: int | None,
@@ -540,27 +551,208 @@ async def _discover_youtube(
 ) -> None:
     """Discover channels by keywords, then route them into the canonical import path."""
 
-    parsed_keywords = [keyword.strip() for keyword in keywords.split(",") if keyword.strip()]
-    request = YouTubeKeywordDiscoveryRequest(
-        keywords=parsed_keywords,
-        language=language,
-        region=region,
-        min_subscribers=min_subscribers,
-        max_subscribers=max_subscribers,
-        max_results_per_keyword=max_results_per_keyword,
-        max_videos=max_videos,
-        source_labels=["youtube_keyword_discovery"],
+    niche_config = get_niche_registry().get(niche) if niche else None
+    parsed_keywords = [
+        keyword.strip() for keyword in (keywords or "").split(",") if keyword.strip()
+    ]
+    if niche_config is not None and not parsed_keywords:
+        parsed_keywords = niche_config.discovery.youtube_keywords
+    if not parsed_keywords:
+        raise typer.BadParameter("--keywords oder --niche ist fuer discover-youtube erforderlich.")
+
+    effective_min_subscribers = (
+        min_subscribers
+        if min_subscribers is not None
+        else niche_config.discovery.min_subscribers if niche_config is not None else None
     )
-    harvested_records = await YouTubeDataAPIHarvester().discover_channels(request)
+    effective_max_subscribers = (
+        max_subscribers
+        if max_subscribers is not None
+        else niche_config.discovery.max_subscribers if niche_config is not None else None
+    )
+    languages = (
+        [language]
+        if language
+        else (
+            niche_config.discovery.languages
+            if niche_config is not None and niche_config.discovery.languages
+            else [None]
+        )
+    )
+    regions = (
+        [region]
+        if region
+        else (
+            niche_config.discovery.regions
+            if niche_config is not None and niche_config.discovery.regions
+            else [None]
+        )
+    )
+
+    harvester = YouTubeDataAPIHarvester()
+    harvested_records = []
+    seen_keys: set[str] = set()
+    for language_value in languages:
+        for region_value in regions:
+            request = YouTubeKeywordDiscoveryRequest(
+                keywords=parsed_keywords,
+                language=language_value,
+                region=region_value,
+                min_subscribers=effective_min_subscribers,
+                max_subscribers=effective_max_subscribers,
+                max_results_per_keyword=max_results_per_keyword,
+                max_videos=max_videos,
+                source_labels=[
+                    "youtube_keyword_discovery",
+                    *([f"niche:{niche_config.niche_id}"] if niche_config is not None else []),
+                ],
+            )
+            discovered = await harvester.discover_channels(request)
+            for record in discovered:
+                if niche_config is not None:
+                    record.niche_labels = sorted(set([*record.niche_labels, niche_config.niche_id]))
+                dedupe_key = record.external_id or f"{record.platform}:{record.handle}"
+                if dedupe_key in seen_keys:
+                    continue
+                seen_keys.add(dedupe_key)
+                harvested_records.append(record)
+
     result = await CreatorSourceImportService().import_records(
         harvested_records,
         batch_source="youtube_search",
-        batch_id="-".join(parsed_keywords[:3]) if parsed_keywords else "youtube-search",
+        batch_id=(
+            niche_config.niche_id
+            if niche_config is not None
+            else "-".join(parsed_keywords[:3])
+        ),
         via_temporal=via_temporal,
         workflow_prefix=workflow_prefix,
         task_queue=task_queue,
     )
+    if niche_config is not None and result.results:
+        async with get_session_factory()() as session:
+            classifier_service = CreatorClassificationService(
+                session=session,
+                llm_providers=_build_llm_providers(),
+                db_session_factory=get_session_factory(),
+                langfuse_hook=LangfuseHook(),
+            )
+            for ingest_result in result.results:
+                creator_id = UUID(ingest_result.creator_id)
+                creator = await session.scalar(
+                    select(Creator).where(Creator.id == creator_id)
+                )
+                if creator is None:
+                    continue
+                creator.niche_labels = sorted(set([*creator.niche_labels, niche_config.niche_id]))
+                await classifier_service.classify_creator_by_handle(
+                    platform=creator.platform,
+                    handle=creator.handle,
+                )
+            await session.commit()
     typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
+@brand_app.command("seed")
+def seed_brands(
+    file: Annotated[
+        Path,
+        typer.Option("--file", exists=True, readable=True),
+    ],
+) -> None:
+    """Seed brands from a YAML file into the local database."""
+
+    asyncio.run(_seed_brands(file))
+
+
+async def _seed_brands(file: Path) -> None:
+    """Import one brand seed file and print the summary."""
+
+    async with get_session_factory()() as session:
+        result = await BrandSeeder(session).seed_file(file)
+        await session.commit()
+    typer.echo(json.dumps(result.model_dump(mode="json"), indent=2, ensure_ascii=False))
+
+
+@brand_app.command("enrich-websites")
+def enrich_brand_websites(
+    domain: str | None = typer.Option(None, "--domain"),
+) -> None:
+    """Fetch websites and derive creator-program/contact signals for brands."""
+
+    asyncio.run(_enrich_brand_websites(domain=domain))
+
+
+async def _enrich_brand_websites(domain: str | None) -> None:
+    """Run website and search enrichment for one or all brands."""
+
+    async with get_session_factory()() as session:
+        brands = await _select_brands(session, domain=domain)
+        enricher = BrandEnricher(session)
+        results = [await enricher.enrich_brand(brand) for brand in brands]
+        await session.commit()
+    payload = [result.model_dump(mode="json") for result in results]
+    typer.echo(
+        json.dumps(payload, indent=2, ensure_ascii=False)
+    )
+
+
+@brand_app.command("score-spend-intent")
+def score_brand_spend_intent(
+    domain: str | None = typer.Option(None, "--domain"),
+) -> None:
+    """Compute the phase-1 spend-intent score for one or all brands."""
+
+    asyncio.run(_score_brand_spend_intent(domain=domain))
+
+
+async def _score_brand_spend_intent(domain: str | None) -> None:
+    """Persist spend-intent scores for one or all brands."""
+
+    scorer = BrandSpendIntentScorer()
+    async with get_session_factory()() as session:
+        brands = await _select_brands(session, domain=domain)
+        results = [scorer.score_brand(brand) for brand in brands]
+        await session.commit()
+    payload = [result.model_dump(mode="json") for result in results]
+    typer.echo(
+        json.dumps(payload, indent=2, ensure_ascii=False)
+    )
+
+
+@brand_app.command("build-evidence")
+def build_brand_evidence(
+    domain: str | None = typer.Option(None, "--domain"),
+) -> None:
+    """Persist deterministic brand evidence items for one or all brands."""
+
+    asyncio.run(_build_brand_evidence(domain=domain))
+
+
+async def _build_brand_evidence(domain: str | None) -> None:
+    """Build brand evidence from stored website and scoring signals."""
+
+    async with get_session_factory()() as session:
+        brands = await _select_brands(session, domain=domain)
+        builder = EvidenceBuilderService(session=session)
+        results = [await builder.build_brand_evidence(brand_id=brand.id) for brand in brands]
+        await session.commit()
+    payload = [result.model_dump(mode="json") for result in results]
+    typer.echo(
+        json.dumps(payload, indent=2, ensure_ascii=False)
+    )
+
+
+async def _select_brands(session, *, domain: str | None) -> list[Brand]:
+    """Load one brand by domain or all brands when no filter is provided."""
+
+    service = BrandService(session)
+    if domain is not None:
+        brand = await service.get_by_domain(domain)
+        if brand is None:
+            raise typer.BadParameter(f"Brand mit Domain {domain} wurde nicht gefunden.")
+        return [brand]
+    return await service.list_brands()
 
 
 @evidence_app.command("build-creator")

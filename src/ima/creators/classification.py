@@ -66,7 +66,9 @@ class CreatorClassificationService:
         if not isinstance(output, ClassifierOutput):
             raise TypeError("Classifier output ist nicht vom erwarteten Typ.")
 
-        creator.niche_labels = sorted(set([output.niche, *output.sub_niches]))
+        creator.niche_labels = sorted(
+            set([*creator.niche_labels, output.niche, *output.sub_niches])
+        )
         creator.language = output.language
         await self.session.flush()
         return output

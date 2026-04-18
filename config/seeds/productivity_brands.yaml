@@ -1,0 +1,60 @@
+- name: Notion
+  domain: notion.so
+  category: SaaS
+  niche_ids: [productivity, tech]
+  geo_markets: [US, DE, GB]
+- name: Obsidian
+  domain: obsidian.md
+  category: SaaS
+  niche_ids: [productivity]
+  geo_markets: [US, GB]
+- name: Todoist
+  domain: todoist.com
+  category: SaaS
+  niche_ids: [productivity]
+  geo_markets: [US, DE, GB]
+- name: Linear
+  domain: linear.app
+  category: SaaS
+  niche_ids: [productivity, tech]
+  geo_markets: [US, DE, GB]
+- name: Readwise
+  domain: readwise.io
+  category: SaaS
+  niche_ids: [productivity]
+  geo_markets: [US, GB]
+- name: Sunsama
+  domain: sunsama.com
+  category: SaaS
+  niche_ids: [productivity]
+  geo_markets: [US, GB]
+- name: Akiflow
+  domain: akiflow.com
+  category: SaaS
+  niche_ids: [productivity]
+  geo_markets: [US, DE, GB]
+- name: Motion
+  domain: usemotion.com
+  category: SaaS
+  niche_ids: [productivity]
+  geo_markets: [US, GB]
+- name: Ugmonk
+  domain: ugmonk.com
+  category: Desk Accessories
+  niche_ids: [productivity]
+  geo_markets: [US, GB]
+- name: Grovemade
+  domain: grovemade.com
+  category: Desk Accessories
+  niche_ids: [productivity, tech]
+  geo_markets: [US, DE, GB]
+- name: Logitech
+  domain: logitech.com
+  category: Consumer Electronics
+  niche_ids: [productivity, tech]
+  geo_markets: [US, DE, GB]
+- name: Moleskine
+  domain: moleskine.com
+  category: Stationery
+  niche_ids: [productivity]
+  geo_markets: [US, DE, GB]

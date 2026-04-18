@@ -16,14 +16,14 @@ from ima.agents.evidence_builder.contract import (
     EvidenceContentRecord,
 )
 from ima.agents.executor import AgentExecutor
-from ima.db.models import Creator, CreatorContent, CreatorMetricSnapshot, EvidenceItem
+from ima.db.models import Brand, Creator, CreatorContent, CreatorMetricSnapshot, EvidenceItem
 from ima.evidence.fetchers import (
     EvidencePageFetcher,
     EvidenceVisualFetcher,
     HttpEvidencePageFetcher,
     PlaywrightScreenshotFetcher,
 )
-from ima.evidence.schemas import EvidenceBuildResult, EvidenceItemResult
+from ima.evidence.schemas import BrandEvidenceBuildResult, EvidenceBuildResult, EvidenceItemResult
 from ima.evidence.storage import EvidenceStorage, LocalEvidenceStorage
 from ima.logging import get_logger
 
@@ -288,6 +288,98 @@ class EvidenceBuilderService:
             evidence_items=evidence_results,
         )
 
+    async def build_brand_evidence_by_domain(self, *, domain: str) -> BrandEvidenceBuildResult:
+        """Resolve a brand by domain before building deterministic brand evidence."""
+
+        statement = select(Brand).where(Brand.domain == domain.strip().lower())
+        brand = await self.session.scalar(statement)
+        if brand is None:
+            raise ValueError(f"Brand {domain} wurde nicht gefunden.")
+        return await self.build_brand_evidence(brand_id=brand.id)
+
+    async def build_brand_evidence(self, *, brand_id: UUID) -> BrandEvidenceBuildResult:
+        """Persist deterministic brand evidence items for future personalization."""
+
+        brand = await self.session.get(Brand, brand_id)
+        if brand is None:
+            raise ValueError(f"Brand {brand_id} wurde nicht gefunden.")
+
+        artifact_uris = [brand.website_snapshot_uri] if brand.website_snapshot_uri else []
+        evidence_results: list[EvidenceItemResult] = []
+
+        if brand.creator_program_score and float(brand.creator_program_score) > 0:
+            evidence_results.append(
+                await self._upsert_brand_evidence_item(
+                    brand=brand,
+                    source_type="brand_website",
+                    claim_text=(
+                        "Brand exposes a creator, affiliate, "
+                        "or partner program signal on its website."
+                    ),
+                    source_uri=brand.website_snapshot_uri or f"brand://{brand.domain}/creator-program",
+                    snippet_text=brand.influencer_contact_email or brand.contact_email,
+                )
+            )
+        if brand.influencer_contact_email:
+            evidence_results.append(
+                await self._upsert_brand_evidence_item(
+                    brand=brand,
+                    source_type="brand_contact",
+                    claim_text=(
+                        f"Brand lists {brand.influencer_contact_email} "
+                        "as an influencer or partnerships contact."
+                    ),
+                    source_uri=brand.website_snapshot_uri or f"brand://{brand.domain}/contact",
+                    snippet_text=brand.influencer_contact_email,
+                )
+            )
+        if brand.hiring_signal_score and float(brand.hiring_signal_score) > 0:
+            evidence_results.append(
+                await self._upsert_brand_evidence_item(
+                    brand=brand,
+                    source_type="hiring_signal",
+                    claim_text=(
+                        "Brand shows hiring signals for influencer marketing "
+                        "or creator partnerships."
+                    ),
+                    source_uri=f"brand://{brand.domain}/hiring-signal",
+                    snippet_text=brand.category,
+                )
+            )
+        if brand.branded_content_score and float(brand.branded_content_score) > 0:
+            evidence_results.append(
+                await self._upsert_brand_evidence_item(
+                    brand=brand,
+                    source_type="meta_ad_library",
+                    claim_text="Brand shows branded-content or ads-library activity signals.",
+                    source_uri=f"brand://{brand.domain}/branded-content",
+                    snippet_text=brand.name,
+                )
+            )
+        if brand.spend_intent_score is not None:
+            evidence_results.append(
+                await self._upsert_brand_evidence_item(
+                    brand=brand,
+                    source_type="brand_scoring",
+                    claim_text=(
+                        "Brand spend intent score currently evaluates to "
+                        f"{float(brand.spend_intent_score):.4f}."
+                    ),
+                    source_uri=f"brand://{brand.domain}/spend-intent",
+                    snippet_text=brand.category,
+                )
+            )
+
+        await self.session.flush()
+        return BrandEvidenceBuildResult(
+            brand_id=str(brand.id),
+            domain=brand.domain,
+            evidence_count=len(evidence_results),
+            artifact_count=len(artifact_uris),
+            artifact_uris=artifact_uris,
+            evidence_items=evidence_results,
+        )
+
     async def _upsert_evidence_item(
         self,
         *,
@@ -354,6 +446,70 @@ class EvidenceBuilderService:
             snippet_text=evidence_item.snippet_text,
         )
 
+    async def _upsert_brand_evidence_item(
+        self,
+        *,
+        brand: Brand,
+        source_type: str,
+        claim_text: str,
+        source_uri: str,
+        snippet_text: str | None,
+    ) -> EvidenceItemResult:
+        """Insert or update one deterministic brand evidence item."""
+
+        source_key = self._brand_source_key(
+            brand_id=str(brand.id),
+            source_uri=source_uri,
+            claim_text=claim_text,
+        )
+        evidence_item = await self.session.scalar(
+            select(EvidenceItem).where(EvidenceItem.source_key == source_key)
+        )
+        if evidence_item is None:
+            evidence_item = EvidenceItem(
+                entity_type="brand",
+                entity_id=brand.id,
+                creator_id=None,
+                brand_id=brand.id,
+                content_id=None,
+                snapshot_id=None,
+                source_key=source_key,
+                source_type=source_type,
+                claim_text=claim_text,
+                source_uri=source_uri,
+                confidence=0.8,
+                artifact_uri=brand.website_snapshot_uri,
+                snippet_text=snippet_text,
+                metadata_json={"brand_domain": brand.domain},
+            )
+            self.session.add(evidence_item)
+        else:
+            evidence_item.entity_type = "brand"
+            evidence_item.entity_id = brand.id
+            evidence_item.creator_id = None
+            evidence_item.brand_id = brand.id
+            evidence_item.content_id = None
+            evidence_item.snapshot_id = None
+            evidence_item.source_type = source_type
+            evidence_item.claim_text = claim_text
+            evidence_item.source_uri = source_uri
+            evidence_item.confidence = 0.8
+            evidence_item.artifact_uri = brand.website_snapshot_uri
+            evidence_item.snippet_text = snippet_text
+            evidence_item.metadata_json = {"brand_domain": brand.domain}
+
+        await self.session.flush()
+        return EvidenceItemResult(
+            evidence_id=str(evidence_item.id),
+            source_key=evidence_item.source_key,
+            source_type=evidence_item.source_type,
+            claim_text=evidence_item.claim_text,
+            source_uri=evidence_item.source_uri,
+            confidence=float(evidence_item.confidence),
+            artifact_uri=evidence_item.artifact_uri,
+            snippet_text=evidence_item.snippet_text,
+        )
+
     def _artifact_key(self, *, creator: Creator, suffix: str) -> str:
         """Build a stable evidence storage key for one creator-scoped artifact."""
 
@@ -378,6 +534,12 @@ class EvidenceBuilderService:
 
         digest = hashlib.sha256(f"{source_uri}|{claim_text}".encode()).hexdigest()[:16]
         return f"creator:{creator_id}:{digest}"
+
+    def _brand_source_key(self, *, brand_id: str, source_uri: str, claim_text: str) -> str:
+        """Build a stable unique key for one generated brand evidence item."""
+
+        digest = hashlib.sha256(f"{source_uri}|{claim_text}".encode()).hexdigest()[:16]
+        return f"brand:{brand_id}:{digest}"
 
     async def _store_html_snapshot(
         self,

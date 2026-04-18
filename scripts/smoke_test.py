@@ -334,7 +334,23 @@ async def main() -> None:
         print("PASS: Alembic-Migration erfolgreich")
 
         await asyncio.to_thread(assert_schema_matches_models)
-        print("PASS: Kritische Score-Spalten stimmen mit ORM-Metadaten ueberein")
+        print("PASS: Kritische Fixed-Point-Spalten stimmen mit ORM-Metadaten ueberein")
+
+        await _assert_columns(
+            "agent_runs",
+            {
+                "id",
+                "agent_name",
+                "provider",
+                "model",
+                "validation_status",
+                "cost_usd",
+                "reserved_cost_usd",
+                "started_at",
+                "completed_at",
+            },
+        )
+        print("PASS: agent_runs-Schema validiert")
 
         await _assert_columns(
             "creators",
@@ -364,6 +380,19 @@ async def main() -> None:
         print("PASS: creators-Schema validiert")
 
         await _assert_columns(
+            "creator_niche_scores",
+            {
+                "id",
+                "creator_id",
+                "niche_id",
+                "niche_fit_score",
+                "created_at",
+                "updated_at",
+            },
+        )
+        print("PASS: creator_niche_scores-Schema validiert")
+
+        await _assert_columns(
             "creator_content",
             {
                 "id",
@@ -383,11 +412,49 @@ async def main() -> None:
         print("PASS: creator_content-Schema validiert")
 
         await _assert_columns(
+            "brands",
+            {
+                "id",
+                "name",
+                "domain",
+                "category",
+                "niche_ids",
+                "geo_markets",
+                "spend_intent_score",
+                "branded_content_score",
+                "hiring_signal_score",
+                "creator_program_score",
+                "contact_email",
+                "influencer_contact_email",
+                "contact_confidence",
+                "website_snapshot_uri",
+                "consent_basis",
+                "last_seen_at",
+            },
+        )
+        print("PASS: brands-Schema validiert")
+
+        await _assert_columns(
+            "brand_creator_matches",
+            {
+                "id",
+                "brand_id",
+                "creator_id",
+                "niche_id",
+                "match_score",
+                "status",
+                "rationale_json",
+            },
+        )
+        print("PASS: brand_creator_matches-Schema validiert")
+
+        await _assert_columns(
             "evidence_items",
             {
                 "id",
                 "entity_type",
                 "entity_id",
+                "brand_id",
                 "source_type",
                 "source_uri",
                 "claim_text",
@@ -397,6 +464,19 @@ async def main() -> None:
             {"evidence_type"},
         )
         print("PASS: evidence_items-Schema validiert")
+
+        for table_name in (
+            "suppression_unsubscribe",
+            "suppression_hard_bounce",
+            "suppression_spam_complaint",
+            "suppression_wrong_person",
+            "suppression_manual",
+        ):
+            await _assert_columns(
+                table_name,
+                {"id", "email", "entity_type", "entity_id", "reason", "created_at"},
+            )
+        print("PASS: suppression-Schema validiert")
 
         await run_creator_week2_smoke()
         print("PASS: Woche-2-Harvester/Scoring/Evidence-Pfad erfolgreich")

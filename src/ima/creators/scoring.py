@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ima.creators.schemas import CreatorGrowthSnapshotInput, CreatorScoreResult
 from ima.creators.scoring_config import ScoringConfig, load_scoring_config
-from ima.db.models import Creator, CreatorContent, CreatorMetricSnapshot
+from ima.db.models import Creator, CreatorContent, CreatorMetricSnapshot, CreatorNicheScore
 from ima.logging import get_logger
+from ima.niches import NicheRegistry, get_niche_registry
 
 logger = get_logger(__name__)
 
@@ -58,6 +59,37 @@ def compute_niche_fit(
         return 0.0
 
     score = (primary_match * primary_label_weight + sub_match * sub_label_weight) / total_weight
+    return round(min(max(score, 0.0), 1.0), 4)
+
+
+def compute_niche_fit_for_labels(
+    creator_labels: Iterable[str],
+    *,
+    primary_labels: list[str],
+    secondary_labels: list[str],
+    primary_weight: float,
+    secondary_weight: float,
+) -> float:
+    """Compute multi-label niche fit from a registry-defined niche configuration."""
+
+    normalized_creator_labels = _normalized_labels(creator_labels)
+    normalized_primary = _normalized_labels(primary_labels)
+    normalized_secondary = _normalized_labels(secondary_labels)
+    if not normalized_creator_labels or not normalized_primary:
+        return 0.0
+
+    primary_match = len(normalized_creator_labels & normalized_primary) / len(normalized_primary)
+    secondary_match = 0.0
+    if normalized_secondary:
+        secondary_match = len(normalized_creator_labels & normalized_secondary) / len(
+            normalized_secondary
+        )
+
+    total_weight = primary_weight + secondary_weight
+    if total_weight <= 0:
+        return 0.0
+
+    score = (primary_match * primary_weight + secondary_match * secondary_weight) / total_weight
     return round(min(max(score, 0.0), 1.0), 4)
 
 
@@ -210,11 +242,13 @@ class CreatorScoringService:
         self,
         session: AsyncSession,
         scoring_config: ScoringConfig | None = None,
+        niche_registry: NicheRegistry | None = None,
     ) -> None:
         """Create a scoring service bound to one async DB session."""
 
         self.session = session
         self.scoring_config = scoring_config or load_scoring_config()
+        self.niche_registry = niche_registry or get_niche_registry()
 
     async def record_snapshot(self, payload: CreatorGrowthSnapshotInput) -> CreatorMetricSnapshot:
         """Persist or update one creator metric snapshot per creator per UTC day."""
@@ -284,13 +318,20 @@ class CreatorScoringService:
         )
 
         growth_score = compute_growth_score(creator, snapshots, self.scoring_config)
-        niche_fit_score = compute_niche_fit(
+        legacy_niche_fit_score = compute_niche_fit(
             creator,
             self.scoring_config.target_niche,
             self.scoring_config.target_sub_niches,
             primary_label_weight=self.scoring_config.niche_fit.primary_label_weight,
             sub_label_weight=self.scoring_config.niche_fit.sub_label_weight,
         )
+        niche_breakdown = await self._sync_creator_niche_scores(creator)
+        niche_fit_score = max(
+            [score for _, score in niche_breakdown],
+            default=legacy_niche_fit_score,
+        )
+        if niche_fit_score <= 0:
+            niche_fit_score = legacy_niche_fit_score
         commercial_score = compute_commercial_readiness(creator, content_items, self.scoring_config)
         fraud_score = compute_fraud_risk(creator, snapshots, content_items, self.scoring_config)
         evidence_coverage_score = compute_evidence_coverage(
@@ -393,3 +434,38 @@ class CreatorScoringService:
         if evidence_coverage_score < qualification.min_evidence_coverage_score:
             reasons.append("evidence_coverage_below_threshold")
         return len(reasons) == 0, reasons
+
+    async def _sync_creator_niche_scores(self, creator: Creator) -> list[tuple[str, float]]:
+        """Upsert per-niche scores from the configured registry."""
+
+        if not self.niche_registry.all():
+            return []
+
+        results: list[tuple[str, float]] = []
+        for niche in self.niche_registry.all():
+            score = compute_niche_fit_for_labels(
+                creator.niche_labels,
+                primary_labels=niche.scoring.niche_fit.primary_labels,
+                secondary_labels=niche.scoring.niche_fit.secondary_labels,
+                primary_weight=niche.scoring.niche_fit.primary_weight,
+                secondary_weight=niche.scoring.niche_fit.secondary_weight,
+            )
+            row = await self.session.scalar(
+                select(CreatorNicheScore).where(
+                    CreatorNicheScore.creator_id == creator.id,
+                    CreatorNicheScore.niche_id == niche.niche_id,
+                )
+            )
+            if row is None:
+                row = CreatorNicheScore(
+                    creator_id=creator.id,
+                    niche_id=niche.niche_id,
+                    niche_fit_score=Decimal(str(score)),
+                )
+                self.session.add(row)
+            else:
+                row.niche_fit_score = Decimal(str(score))
+            results.append((niche.niche_id, score))
+
+        await self.session.flush()
+        return results

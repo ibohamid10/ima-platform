@@ -14,6 +14,21 @@ from ima.config import settings
 from ima.db.models import Base
 
 FIXED_POINT_SCHEMA_COLUMNS = (
+    ("agent_runs", "cost_usd"),
+    ("agent_runs", "reserved_cost_usd"),
+    ("brands", "spend_intent_score"),
+    ("brands", "branded_content_score"),
+    ("brands", "hiring_signal_score"),
+    ("brands", "creator_program_score"),
+    ("brands", "contact_confidence"),
+    ("brand_creator_matches", "match_score"),
+    ("brand_creator_matches", "niche_fit_component"),
+    ("brand_creator_matches", "audience_alignment_component"),
+    ("brand_creator_matches", "commercial_readiness_component"),
+    ("brand_creator_matches", "brand_spend_intent_component"),
+    ("brand_creator_matches", "geo_fit_component"),
+    ("brand_creator_matches", "competitor_penalty_component"),
+    ("brand_creator_matches", "growth_momentum_component"),
     ("creators", "avg_engagement_30d"),
     ("creators", "growth_score"),
     ("creators", "niche_fit_score"),
@@ -21,6 +36,7 @@ FIXED_POINT_SCHEMA_COLUMNS = (
     ("creators", "fraud_score"),
     ("creators", "evidence_coverage_score"),
     ("creators", "email_confidence"),
+    ("creator_niche_scores", "niche_fit_score"),
     ("creator_content", "sponsor_probability"),
     ("evidence_items", "confidence"),
 )
@@ -96,7 +112,7 @@ async def _assert_schema_matches_models_async() -> None:
 
 
 def assert_schema_matches_models() -> None:
-    """Fail when critical migrated score columns drift away from ORM metadata."""
+    """Fail when critical migrated fixed-point columns drift away from ORM metadata."""
 
     asyncio.run(_assert_schema_matches_models_async())
 
