@@ -105,3 +105,45 @@ Jeder Eintrag nutzt dieses Schema:
 **Root Cause:** Plumbing-Fakes und Agent-Eval wurden in derselben Testschicht vermischt. Dadurch testete der Default-Pfad nur Executor-Verdrahtung, nicht Prompt, Contract oder agentisches Verhalten.
 **Fix:** Die Executor-Plumbing bleibt in `tests/agents/test_executor.py` mit generischen Fakes. Die Golden-Set-Tests nutzen jetzt eigene input-basierte Heuristik-Provider, die `expected` nicht kennen, und asserten zusaetzlich auf Prompt-Snippets sowie das beabsichtigte Default-Modell.
 **Prevention-Rule:** Golden-Set- oder Eval-Fakes duerfen niemals aus den erwarteten Zielwerten lesen. Wenn ein Test `expected`-Fixtures hat, muss die Testantwort ausschliesslich aus dem Input oder aus externen Live-Providern abgeleitet werden.
+
+## 2026-04-18 - agent_runs muessen auch Preflight-Abbrueche vor dem Provider-Call auditieren
+**Kategorie:** DB
+**Symptom:** Budget-Exceeded und fehlende kompatible Provider brachen im `AgentExecutor` ab, ohne einen `agent_runs`-Eintrag zu schreiben, obwohl genau diese operativen Fehlerpfade fuer Budget- und Observability-Dashboards wichtig sind.
+**Root Cause:** Budget-Check und Provider-Selektion liefen vor dem Session-Block, in dem der `AgentRun` angelegt wurde. Dadurch existierte fuer diese Fehler kein persistierter Audit-Trail.
+**Fix:** `AgentExecutor.run()` legt den `AgentRun` jetzt vor den Preflight-Checks an, fuehrt Budget-Check und Provider-Selektion im selben Session-Kontext aus und markiert den Run bei fruehen Abbruechen mit `budget_exceeded` bzw. `provider_unavailable`. Eine Alembic-Revision erweitert die Postgres-Constraint entsprechend.
+**Prevention-Rule:** Alles, was fachlich als Agent-Lauf gilt, muss zuerst den Audit-Record anlegen und erst danach vorzeitig scheitern duerfen. Preflight-Checks fuer Budget, Provider, Policy oder Guardrails gehoeren hinter den `agent_runs`-Pfad, nicht davor.
+
+## 2026-04-18 - Budget-Hard-Gates brauchen Reservationen statt nur Summen bereits committeter Kosten
+**Kategorie:** DB
+**Symptom:** Der erste Budget-Fix schrieb zwar Audit-Eintraege fuer `budget_exceeded`, liess aber weiterhin zu, dass zwei parallele Agent-Runs dieselbe freie Budgetluecke sehen und beide gleichzeitig loslaufen.
+**Root Cause:** Der Budget-Check summierte nur bereits committete `cost_usd`. Laufende Runs ohne persistierte Reservation waren fuer konkurrierende Sessions unsichtbar, bis sie ihren Provider-Call abgeschlossen hatten.
+**Fix:** `agent_runs` hat jetzt `reserved_cost_usd`. Der `AgentExecutor` reserviert vor dem ersten Provider-Call pessimistisch Budget, zaehlt `cost_usd + reserved_cost_usd` im Hard-Gate zusammen, nutzt in Postgres ein transaktionales Advisory Lock fuer die Reservation und setzt die Reservation bei Erfolg oder Fehler wieder auf null.
+**Prevention-Rule:** Budget-Caps fuer parallele Worker nie nur gegen bereits angefallene Kosten pruefen. Fuer jedes konkurrierende Budget-Gate braucht es eine persistierte Reservation oder ein explizites Locking-Schema in derselben DB-Transaktion.
+
+## 2026-04-18 - HTTP-Fallbacks nie am Exception-String erkennen
+**Kategorie:** Testing
+**Symptom:** Der OpenAI-Adapter entschied den Fallback von Responses API auf Chat Completions darueber, ob im Exception-Text zufaellig `"400"` oder `"404"` vorkam.
+**Root Cause:** Transportfehler wurden nur als formatierter String weitergereicht. Der Fallback hatte deshalb keine stabile, strukturierte Fehlerursache und konnte bei veraendertem Fehlertext oder falschen 400er-Ursachen still kippen.
+**Fix:** `LLMProviderUnavailableError` traegt jetzt optional `status_code`. Die OpenAI-Fallback-Logik matched explizit auf `exc.status_code in {400, 404}`, und Tests decken jetzt sowohl den legitimen Fallback als auch den Nicht-Fallback bei 500ern ab.
+**Prevention-Rule:** Feature-Fallbacks niemals ueber Stringsuche in Fehlermeldungen steuern. HTTP-nahe Fehler muessen strukturierte Metadaten wie `status_code` tragen, damit Aufrufer eindeutig und testbar entscheiden koennen.
+
+## 2026-04-18 - Compose-Dateien duerfen keine lokalen Dev-Secrets als eingebaute Defaults ausliefern
+**Kategorie:** Security
+**Symptom:** `docker-compose.yml` enthielt lauffaehige Default-Credentials fuer ClickHouse, MinIO und Langfuse-S3 sowie einen kryptografisch wertlosen Nullschluessel fuer `LANGFUSE_ENCRYPTION_KEY`.
+**Root Cause:** Die lokale Dev-Topologie hat Komfort-Defaults direkt in Compose konserviert, statt Secrets explizit aus `.env` zu beziehen und unsichere Beispielwerte nur fuer `IMA_ENV=local` zuzulassen.
+**Fix:** Compose liest die betroffenen Secrets jetzt ausschliesslich ueber verpflichtende `${VAR:?...}`-Interpolation aus `.env`, `.env.example` dokumentiert die benoetigten lokalen Werte, und ein vorgeschalteter `langfuse-config-guard` blockiert jeden Nicht-`local`-Start mit dem dokumentierten Dev-Default fuer `LANGFUSE_ENCRYPTION_KEY`.
+**Prevention-Rule:** In Compose-Dateien niemals einsatzfaehige Secrets oder kryptografische Default-Schluessel einkompilieren. Lokale Beispielwerte gehoeren nur in `.env.example`, und unsichere Dev-Defaults brauchen einen expliziten Environment-Guard fuer Nicht-Local-Setups.
+
+## 2026-04-18 - Schema-Fehlertelemetrie darf Retry-Zahlen nie hartkodieren
+**Kategorie:** Testing
+**Symptom:** Der `schema_failed`-Pfad im `AgentExecutor` schrieb immer `validation_attempts = 2`, auch wenn die tatsaechliche Retry-Policy spaeter veraendert wuerde.
+**Root Cause:** Der Fehlerpfad nutzte eine implizite Annahme ueber die aktuelle Retry-Strategie statt die echte Versuchszahl aus `_attempt_completion()` zu uebernehmen.
+**Fix:** `_attempt_completion()` hebt finale Schema-Fehler jetzt als `LLMSchemaValidationAttemptsError` mit `attempts`-Attribut hoch. Der Executor persistiert diesen Wert direkt im `agent_runs`-Record, und ein Regressionstest deckt explizit den Fall mit simulierten drei Versuchen ab.
+**Prevention-Rule:** Telemetrie-Zaehler fuer Retries, Fallbacks oder Policies nie als literale Konstanten in Fehlerpfade schreiben. Wenn ein Codepfad die reale Versuchszahl kennt, muss sie strukturiert im Exception- oder Result-Objekt weitergereicht werden.
+
+## 2026-04-18 - Brand Spend Intent darf nie an einem einzelnen externen API-Zugang haengen
+**Kategorie:** Deployment
+**Symptom:** Der Woche-3-Brand-Pfad braucht `branded_content_score`, aber in lokalen und fruehen Staging-Setups fehlt oft `META_ACCESS_TOKEN`, waehrend API-Zugaenge, Reviews oder Limits ausserhalb des Kern-Repos liegen.
+**Root Cause:** Spend-Intent war fachlich als Dreisignal-Score gedacht, aber technisch drohte ein einzelner externer Meta-Zugang das gesamte Signalset zu blockieren.
+**Fix:** Der Meta-Ad-Library-Service ist best-effort und faellt ohne Token oder bei HTTP-Fehlern kontrolliert auf einen Such-basierten Fallback zurueck. Website- und Hiring-Signale bleiben davon unabhaengig, sodass `spend_intent_score` auch ohne Meta-Zugang berechenbar bleibt.
+**Prevention-Rule:** Operativ wichtige Scores nie an genau eine optionale Drittanbieter-Integration ketten. Wenn ein externes Signal fehlt, braucht es einen klaren Fallback oder eine degradierte, aber weiter lauffaehige Berechnung.

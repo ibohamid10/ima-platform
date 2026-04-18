@@ -4,6 +4,8 @@ Dieses Repo enthaelt das lokale Fundament fuer eine interne Influencer Marketing
 
 ## Setup
 
+Vor `docker compose up -d` muss `.env` alle benoetigten Infra-Secrets enthalten. Fuer lokales Development darf `IMA_ENV=local` den dokumentierten Langfuse-Dev-Key verwenden; ausserhalb von `local` blockiert der Compose-Guard absichtlich jeden Start mit diesem Default.
+
 ```bash
 uv sync --dev
 cp .env.example .env
@@ -50,9 +52,23 @@ Vor dem ersten Live-Import `YOUTUBE_DATA_API_KEY` in `.env` setzen. Der Live-Pfa
 uv run ima creators import-youtube-channel --channel-id UC_x5XG1OV2P6uZZ5FSM9Ttw --direct
 uv run ima creators import-youtube-channel --channel-id UC_x5XG1OV2P6uZZ5FSM9Ttw --via-temporal
 uv run ima creators discover-youtube --keywords "hyrox training,fitness austria" --language de --min-subscribers 100000 --direct
+uv run ima creators discover-youtube --niche productivity --max-results-per-keyword 2 --direct
 ```
 
 `search.list` kostet bei YouTube deutlich mehr Quota als `channels.list`, `playlistItems.list` oder `videos.list`. Deshalb bleibt `channel_id` der billigere und stabilere Primarpfad, waehrend Keyword-Discovery bewusst als gezielter Discovery-Schritt gedacht ist.
+
+## Brands, Spend Intent und Brand Evidence
+
+Woche 3 fuehrt eine YAML-getriebene Brand-Seite ein. `config/niches/*.yaml` definieren Discovery-Keywords, Nischen-Fit-Labels und Brand-Signal-Keywords fuer `productivity` und `tech`. Brand-Seeds liegen unter `config/seeds/`.
+
+```bash
+uv run ima brands seed --file config/seeds/productivity_brands.yaml
+uv run ima brands enrich-websites --domain notion.so
+uv run ima brands score-spend-intent --domain notion.so
+uv run ima brands build-evidence --domain notion.so
+```
+
+Der Website-Enricher arbeitet in Phase 1 bewusst simpel mit `httpx`, HTML-Keyword-Scans und Such-basierten Hiring-Signalen. Die Meta-Ad-Library-Strecke nutzt, wenn vorhanden, `META_ACCESS_TOKEN`; ohne Token faellt sie kontrolliert auf einen Fallback-Suchpfad zurueck, damit der Spend-Intent-Score nicht an einer einzelnen API-Huerde haengen bleibt.
 
 ## Evidence Builder
 

@@ -91,10 +91,11 @@ Ein Negotiation-Assistant gehoert bewusst nicht zu Phase 1.
 | Tabelle | Zweck |
 |---|---|
 | `creators` | Stammdaten, Nische, Consent-Basis, Scores und Status qualifizierter Creator |
+| `creator_niche_scores` | Per-Nische-Fit-Breakdown fuer denselben Creator ueber mehrere Nischen hinweg |
 | `creator_content` | Inhalte, Signals und Rohdatenpunkte fuer Growth, Sponsorship-Erkennung und Evidence |
 | `brands` | Stammdaten, Spend-Intent-Signale, Kontakt- und Consent-Basis der Brands |
 | `brand_creator_matches` | Ergebnis der Matching-Logik mit Match-Score, Begruendung und Status |
-| `evidence_items` | Einzelne belegbare Fakten mit `evidence_id` als Grundlage fuer Evidence-Coverage |
+| `evidence_items` | Einzelne belegbare Fakten fuer Creator oder Brands mit `evidence_id` als Grundlage fuer Evidence-Coverage |
 | `outreach_threads` | Thread-Zustand fuer Erstmail, Sequenz, Replies, Approval und Status |
 | `agent_runs` | Non-negotiable Audit-Tabelle fuer Modell, Kosten, Laufzeit, Version und Validierungsergebnis |
 | `suppression_unsubscribe` | Permanente Unterdrueckung nach Abmeldung |
@@ -126,6 +127,12 @@ Ein Negotiation-Assistant gehoert bewusst nicht zu Phase 1.
 
 TikTok ist explizit als plattformrisiko-behaftete Saeule markiert. Die Architektur muss ohne TikTok weiterlaufen koennen.
 
+## Nischen-System
+
+Nischen werden nicht mehr als einzelne Zielvariable behandelt, sondern als Registry aus YAML-definierten `NicheConfig`-Dokumenten. Jede Nische beschreibt Discovery-Keywords, Subscriber-Filter, Sprach- und Regionshinweise, Nischen-Fit-Labels sowie Brand-Signal-Keywords in genau einer Quelle.
+
+Die Registry ist absichtlich multi-nische-faehig, obwohl Phase 1 operativ mit `productivity` und `tech` startet. Creator koennen mehreren Nischen gleichzeitig zugeordnet sein. Das detaillierte Breakdown wird in `creator_niche_scores` gespeichert; `creators.niche_fit_score` bleibt der Best-Score-Shortcut fuer bestehende Qualification- und Ranking-Pfade.
+
 ## Scoring-Logik
 
 ### Creator-Seite
@@ -145,6 +152,8 @@ Phase 1 nutzt drei Spend-Intent-Signale:
 - Branded Content Presence
 - Hiring Signals
 - Creator-Program-Pages
+
+Diese Signale werden zuerst ueber einfache, austauschbare Python-Services erzeugt: Website-HTML-Analyse, suchbasierte Hiring-Heuristik und ein Meta-Ad-Library-Service mit Fallback-Pfad, falls kein Access Token vorhanden ist. Die Gewichte liegen in `ScoringConfig`, nicht im Fachcode.
 
 Phase 2 kann spaeter ergaenzen:
 
@@ -225,7 +234,7 @@ Die Review-UI ist der einzige visuelle Teil des Systems. Sie ist kein Produkt-Fr
 
 ### Stack-Empfehlung
 
-Empfohlen ist Next.js 15 mit App Router, Tailwind und shadcn/ui. Die finale Entscheidung zwischen Next.js 15 und FastAPI plus HTMX muss spaetestens Ende Woche 3 fallen, bevor die UI-Arbeit in Woche 4 startet. Aktuelle Empfehlung: Next.js.
+Die Review-UI startet verbindlich mit Next.js 15, App Router, Tailwind und `shadcn/ui`. FastAPI plus HTMX bleibt verworfen fuer den Primaerpfad, weil Woche 4 eine belastbare, klar entschiedene Frontend-Basis braucht.
 
 ### Scope-Grenze in Phase 1
 

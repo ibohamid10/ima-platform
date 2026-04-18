@@ -139,3 +139,21 @@ Dieses Dokument ist append-only. Neue Entscheidungen werden unten angefuegt. Bes
 **Entscheidung:** `growth_score`, `commercial_score`, `fraud_score`, `evidence_coverage_score`, `niche_fit_score`, `email_confidence`, `sponsor_probability`, `confidence` und `avg_engagement_30d` bleiben kanonisch `NUMERIC(6,4)` bzw. `NUMERIC(8,4)`. Die ORM-Metadaten sind fuer diese Fixed-Point-Spalten die verbindliche Typreferenz; Alembic-Migrationen muessen ueber einen Drift-Check gegen diese Metadaten gruen bleiben.
 **Begruendung:** Die Scoring-Pipeline trifft threshold-basierte Entscheidungen und vergleicht lokal wie in Tests `Decimal`-Werte. Fixed-Point-Storage vermeidet stille Rundungs- und Entscheidungsdrifts zwischen SQLite-Tests, frischen Postgres-Schemas und bereits migrierten Datenbanken.
 **Verworfene Alternativen:** ORM auf `Float`/`DOUBLE PRECISION` umstellen, gemischte Decimal-in-Tests/Floats-in-Prod-Typen, Migrationsaenderungen an Score-Spalten ohne nachgelagerten Drift-Check
+
+## 2026-04-18 - Review-UI startet verbindlich mit Next.js 15
+**Kontext:** Die Review-UI sollte spaetestens Ende Woche 3 auf einen finalen Stack festgelegt werden, damit Woche 4 nicht mit erneuter Framework-Diskussion startet.
+**Entscheidung:** Das Operator-Frontend fuer `/matches`, `/approvals`, `/replies`, `/creators`, `/brands` und `/dashboard` startet verbindlich mit Next.js 15, App Router, Tailwind und `shadcn/ui`.
+**Begruendung:** Das Repo profitiert fuer die spaetere UI von einem klaren Server-Component-Default, schneller CRUD-/Review-Umsetzung, einfacher Anbindung an die bestehende TypeScript-Toolchain und einem pragmatischen Komponentenfundament ohne eigenes Design-System-Overhead.
+**Verworfene Alternativen:** FastAPI plus HTMX als Primar-Stack, spaetere erneute Stack-Wahl erst in Woche 4, gemischte UI-Stacks ohne klare Primaerentscheidung
+
+## 2026-04-18 - Nischen sind YAML-definierte Registry-Objekte statt Code-Konstanten
+**Kontext:** Woche 3 fuehrt erstmals mehrere Zielnischen gleichzeitig ein. Discovery, Brand-Seeding, Spend-Intent-Signale und Matching brauchen dieselbe Nischenquelle ohne Copy-Paste im Code.
+**Entscheidung:** Nischen werden als YAML-Dateien unter `config/niches/` modelliert und beim Start ueber `NicheRegistry` geladen. Neue Nische bedeutet neue Datei und validierte `NicheConfig`, nicht neue If/Else-Logik.
+**Begruendung:** Das macht Discovery-Keywords, Brand-Signal-Keywords und Nischen-Fit-Logik zentral aenderbar, testbar und spaeter operator-faehig. Gleichzeitig bleibt die Fachlogik im Code generisch und multi-nische-faehig.
+**Verworfene Alternativen:** Hartcodierte Nischen-Konstanten in Python, getrennte Keyword-Listen pro Service, einzelne Environment-Variablen statt versionierter Config-Dateien
+
+## 2026-04-18 - Creator-Nischen-Scoring nutzt Detailtabelle plus Best-Score-Shortcut
+**Kontext:** Ein Creator kann zu mehreren Nischen passen, waehrend bestaehender Code und Phase-1-Filter weiterhin einen schnellen Einzelwert auf `creators` erwarten.
+**Entscheidung:** Das detaillierte Nischen-Breakdown lebt in `creator_niche_scores` (`creator_id`, `niche_id`, `niche_fit_score`). `creators.niche_fit_score` bleibt als Best-Score ueber alle konfigurierten Nischen erhalten, damit bestehende Qualification- und Sortierpfade stabil bleiben.
+**Begruendung:** Das Matching in Woche 4 braucht per-Nische-Aufloesung, aber die Pipeline heute braucht weiterhin einen billigen Top-Level-Score. Die Kombination aus Detailtabelle und Shortcut erfuellt beides ohne Datenverlust.
+**Verworfene Alternativen:** Nur ein einziger `niche_fit_score` ohne Breakdown, reines JSON-Feld auf `creators`, ausschliesslich per-Nische-Tabelle ohne schnellen Aggregatwert auf dem Creator

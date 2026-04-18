@@ -62,11 +62,15 @@ Die definierte Folge von Touches fuer einen Outreach-Thread. In Phase 1 maximal 
 
 ## Niche
 
-Die Zielnische, auf die Phase 1 fokussiert wird. Sie grenzt Discovery, Scoring und Matching ein.
+Eine konfigurierbare inhaltliche Zielgruppe, die Discovery, Scoring, Brand-Signale und Matching einrahmt. Phase 1 startet mit `productivity` und `tech`, ist aber von Anfang an multi-nische-faehig.
 
 ## Sub-Nische
 
 Eine feinere Spezifizierung innerhalb einer Nische. Sie hilft, `niche_fit` sauberer zu bewerten.
+
+## Niche Config
+
+Die YAML-definierte Quelle der Wahrheit fuer eine Nische. Sie enthaelt Discovery-Keywords, Subscriber-Filter, Scoring-Labels und Brand-Signal-Keywords.
 
 ## Golden Set
 
@@ -75,6 +79,26 @@ Ein kuratiertes Evaluations-Set fuer Tests, Modellvergleiche oder Guardrail-Prue
 ## Spend Intent
 
 Die Wahrscheinlichkeit, dass eine Brand aktuell oder bald Budget und Absicht fuer Creator-Sponsorships hat.
+
+## Branded Content Score
+
+Ein Teil-Signal des `spend_intent`, das aus Meta-Ad-Library- oder Fallback-Signalen fuer aktive Brand-Praesenz abgeleitet wird.
+
+## Creator Program Score
+
+Ein Teil-Signal des `spend_intent`, das aus Website-Hinweisen wie Affiliate-, Ambassador- oder Partner-Programmen berechnet wird.
+
+## Hiring Signal
+
+Ein Teil-Signal des `spend_intent`, das auf Such- oder Job-Posting-Hinweise fuer Creator-, Influencer- oder Partnership-Rollen basiert.
+
+## Contact Provider
+
+Eine austauschbare Adapter-Abstraktion fuer Brand-Kontaktquellen wie Hunter.io oder spaeter Apollo. Sie liefert Kontakt- und Verifizierungsdaten ohne Vendor-Logik im Fachcode.
+
+## Suppression
+
+Der globale Versand-Blocker fuer E-Mail-Adressen, die wegen Unsubscribe, Bounce, Spam, Wrong Person oder manueller Entscheidung nie wieder automatisch angeschrieben werden duerfen.
 
 ## Commercial Readiness
 
