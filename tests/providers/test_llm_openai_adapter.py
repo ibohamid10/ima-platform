@@ -10,6 +10,7 @@ import respx
 from pydantic import BaseModel
 
 from ima.providers.llm.base import LLMMessage
+from ima.providers.llm.exceptions import LLMProviderUnavailableError
 from ima.providers.llm.openai_adapter import OpenAIAdapter
 
 
@@ -101,6 +102,66 @@ async def test_openai_falls_back_to_chat_completions() -> None:
     assert response.content == '{"label":"food"}'
     assert responses_route.call_count == 1
     assert chat_route.call_count == 1
+
+
+@pytest.mark.asyncio()
+@respx.mock
+async def test_openai_uses_status_code_for_chat_fallback() -> None:
+    """A structured 400 from Responses API should trigger the explicit fallback path."""
+
+    responses_route = respx.post("https://api.openai.com/v1/responses").mock(
+        return_value=httpx.Response(400, json={"error": {"message": "responses unsupported"}})
+    )
+    chat_route = respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": '{"label":"fallback-400"}'}}],
+                "usage": {"prompt_tokens": 20, "completion_tokens": 10},
+            },
+        )
+    )
+    adapter = OpenAIAdapter(api_key="test-key")
+    response = await adapter.complete(
+        messages=[LLMMessage(role="user", content="Fallback on 400")],
+        model="gpt-5.4-nano",
+        response_schema=DemoSchema,
+    )
+
+    assert response.content == '{"label":"fallback-400"}'
+    assert responses_route.call_count == 1
+    assert chat_route.call_count == 1
+
+
+@pytest.mark.asyncio()
+@respx.mock
+async def test_openai_does_not_fallback_on_server_errors() -> None:
+    """A 500 from Responses API should raise directly instead of silently falling back."""
+
+    responses_route = respx.post("https://api.openai.com/v1/responses").mock(
+        return_value=httpx.Response(500, json={"error": {"message": "server boom"}})
+    )
+    chat_route = respx.post("https://api.openai.com/v1/chat/completions").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": '{"label":"should-not-run"}'}}],
+                "usage": {"prompt_tokens": 20, "completion_tokens": 10},
+            },
+        )
+    )
+    adapter = OpenAIAdapter(api_key="test-key")
+
+    with pytest.raises(LLMProviderUnavailableError) as exc_info:
+        await adapter.complete(
+            messages=[LLMMessage(role="user", content="Do not fallback")],
+            model="gpt-5.4-nano",
+            response_schema=DemoSchema,
+        )
+
+    assert exc_info.value.status_code == 500
+    assert responses_route.call_count == 1
+    assert chat_route.call_count == 0
 
 
 @pytest.mark.asyncio()

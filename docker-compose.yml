@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-ima}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ima}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-ima}
       TZ: UTC
       PGTZ: UTC
@@ -36,7 +36,7 @@ services:
         "--loglevel",
         "warning",
         "--requirepass",
-        "${REDIS_AUTH:-ima-redis-dev}",
+        "${REDIS_AUTH:?Set REDIS_AUTH in .env}",
         "--maxmemory-policy",
         "noeviction",
       ]
@@ -45,7 +45,7 @@ services:
     volumes:
       - ./data/redis:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_AUTH:-ima-redis-dev} ping"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_AUTH:?Set REDIS_AUTH in .env} ping"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -63,7 +63,7 @@ services:
       DB: postgres12
       DB_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-ima}
-      POSTGRES_PWD: ${POSTGRES_PASSWORD:-ima}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_SEEDS: postgres
     ports:
       - "${TEMPORAL_PORT:-7233}:7233"
@@ -119,8 +119,8 @@ services:
     user: "101:101"
     environment:
       CLICKHOUSE_DB: default
-      CLICKHOUSE_USER: clickhouse
-      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?Set CLICKHOUSE_USER in .env}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in .env}
     ports:
       - "${CLICKHOUSE_PORT:-8123}:8123"
     volumes:
@@ -140,8 +140,8 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: miniosecret
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
     ports:
       - "${MINIO_PORT:-9090}:9000"
       - "${MINIO_CONSOLE_PORT:-9091}:9001"
@@ -161,12 +161,30 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minio miniosecret &&
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
       mc mb --ignore-existing local/langfuse &&
       exit 0
       "
+    networks:
+      - ima-network
+
+  langfuse-config-guard:
+    image: alpine:3.21
+    container_name: ima-langfuse-config-guard
+    environment:
+      IMA_ENV: ${IMA_ENV:-local}
+      LANGFUSE_ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:?Set LANGFUSE_ENCRYPTION_KEY in .env}
+    command:
+      [
+        "/bin/sh",
+        "-c",
+        "DEV_KEY='0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'; if [ \"$$IMA_ENV\" != \"local\" ] && [ \"$$LANGFUSE_ENCRYPTION_KEY\" = \"$$DEV_KEY\" ]; then echo 'Refusing Langfuse startup: LANGFUSE_ENCRYPTION_KEY uses the insecure local dev default outside IMA_ENV=local.'; exit 1; fi",
+      ]
     networks:
       - ima-network
 
@@ -185,33 +203,35 @@ services:
         condition: service_healthy
       createbuckets:
         condition: service_completed_successfully
+      langfuse-config-guard:
+        condition: service_completed_successfully
     environment: &langfuse-common-env
       NEXTAUTH_URL: http://localhost:3000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-ima}:${POSTGRES_PASSWORD:-ima}@postgres:5432/${POSTGRES_DB:-ima}
-      SALT: ${LANGFUSE_SALT:-replace-with-dev-salt}
-      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ima}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-ima}
+      SALT: ${LANGFUSE_SALT:?Set LANGFUSE_SALT in .env}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:?Set LANGFUSE_ENCRYPTION_KEY in .env}
       TELEMETRY_ENABLED: false
       CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
       CLICKHOUSE_URL: http://clickhouse:8123
-      CLICKHOUSE_USER: clickhouse
-      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?Set CLICKHOUSE_USER in .env}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in .env}
       CLICKHOUSE_CLUSTER_ENABLED: false
-      REDIS_CONNECTION_STRING: redis://:${REDIS_AUTH:-ima-redis-dev}@redis:6379/0
+      REDIS_CONNECTION_STRING: redis://:${REDIS_AUTH:?Set REDIS_AUTH in .env}@redis:6379/0
       REDIS_TLS_ENABLED: false
       LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
       LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
-      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
-      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID:?Set LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID in .env}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY:?Set LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY in .env}
       LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
       LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: true
       LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
       LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
-      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
-      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: miniosecret
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID:?Set LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID in .env}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY:?Set LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY in .env}
       LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
       LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: true
-      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-local-dev}
-      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-local-dev}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:?Set LANGFUSE_PUBLIC_KEY in .env}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:?Set LANGFUSE_SECRET_KEY in .env}
     ports:
       - "${LANGFUSE_WORKER_PORT:-3030}:3030"
     healthcheck:
@@ -241,16 +261,18 @@ services:
         condition: service_healthy
       createbuckets:
         condition: service_completed_successfully
+      langfuse-config-guard:
+        condition: service_completed_successfully
     environment:
       <<: *langfuse-common-env
-      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-replace-with-dev-nextauth-secret}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:?Set LANGFUSE_NEXTAUTH_SECRET in .env}
       LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-ima-local}
       LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-IMA Local Dev}
       LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-ima-local-dev}
       LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-IMA}
       LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-owner@example.com}
       LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-IMA Owner}
-      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-change-me-local}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:?Set LANGFUSE_INIT_USER_PASSWORD in .env}
     ports:
       - "${LANGFUSE_PORT:-3000}:3000"
     healthcheck:

@@ -79,7 +79,7 @@ class OpenAIAdapter(LLMProvider):
             )
             return self._normalize_responses_api(raw_response, model)
         except LLMProviderUnavailableError as exc:
-            if "404" not in str(exc) and "400" not in str(exc):
+            if exc.status_code not in {400, 404}:
                 raise
             raw_response = await self._post_chat_completions(
                 messages, model, response_schema, temperature, max_tokens
@@ -158,7 +158,8 @@ class OpenAIAdapter(LLMProvider):
             raise LLMRateLimitError("OpenAI rate limit reached.")
         if response.status_code >= 400:
             raise LLMProviderUnavailableError(
-                f"OpenAI request failed: {response.status_code} {response.text}"
+                f"OpenAI request failed: {response.status_code} {response.text}",
+                status_code=response.status_code,
             )
         return response.json()
 

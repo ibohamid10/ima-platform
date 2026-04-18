@@ -4,24 +4,32 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from datetime import UTC, datetime, time
 from decimal import Decimal
 from typing import Any
 
 from pydantic import BaseModel, ValidationError
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy import func, select, text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ima.agents.contract import AgentContract
 from ima.agents.exceptions import AgentInputValidationError, AgentProviderSelectionError
 from ima.config import settings
 from ima.db.models import AgentRun, ValidationStatus
+from ima.logging import get_logger
 from ima.providers.llm.base import LLMMessage, LLMProvider
 from ima.providers.llm.exceptions import (
     LLMBudgetExceededError,
     LLMProviderUnavailableError,
+    LLMSchemaValidationAttemptsError,
     LLMSchemaValidationError,
 )
+
+BUDGET_WARNING_THRESHOLD = Decimal("0.80")
+RESERVATION_PRECISION = Decimal("0.000001")
+BUDGET_LOCK_KEY = 20_260_418
+logger = get_logger(__name__)
 
 
 class AgentExecutor:
@@ -46,18 +54,20 @@ class AgentExecutor:
         """Execute the contract with one schema retry and provider fallback."""
 
         validated_inputs = self._validate_inputs(inputs)
-        await self._ensure_budget_available()
-
         messages = self.contract.render_prompt(validated_inputs)
         input_payload = validated_inputs.model_dump(mode="json")
         input_hash = self._hash_payload(input_payload)
         candidates = self._candidate_pairs()
-        if not candidates:
-            raise AgentProviderSelectionError(
-                f"Kein Provider unterstuetzt Modelle {self.contract.model_preference}."
+        initial_provider_name = candidates[0][0] if candidates else "unresolved"
+        initial_model = (
+            candidates[0][2]
+            if candidates
+            else (
+                self.contract.model_preference[0]
+                if self.contract.model_preference
+                else "unresolved"
             )
-
-        initial_provider_name, initial_provider, initial_model = candidates[0]
+        )
         trace = self.langfuse_hook.start_trace(
             name=f"agent:{self.contract.name}",
             input_payload=input_payload,
@@ -80,6 +90,38 @@ class AgentExecutor:
             )
             session.add(run_record)
             await session.flush()
+
+            if not candidates:
+                error_message = (
+                    f"Kein Provider unterstuetzt Modelle {self.contract.model_preference}."
+                )
+                await self._mark_run_failed(
+                    session=session,
+                    run_record=run_record,
+                    validation_status=ValidationStatus.PROVIDER_UNAVAILABLE.value,
+                    error_message=error_message,
+                )
+                trace.finish(output={"error": error_message})
+                self.langfuse_hook.flush()
+                raise AgentProviderSelectionError(error_message)
+
+            try:
+                await self._reserve_budget(
+                    session=session,
+                    run_record=run_record,
+                    messages=messages,
+                    candidates=candidates,
+                )
+            except LLMBudgetExceededError as exc:
+                await self._mark_run_failed(
+                    session=session,
+                    run_record=run_record,
+                    validation_status=ValidationStatus.BUDGET_EXCEEDED.value,
+                    error_message=str(exc),
+                )
+                trace.finish(output={"error": str(exc)})
+                self.langfuse_hook.flush()
+                raise
 
             provider_error_messages: list[str] = []
 
@@ -106,6 +148,7 @@ class AgentExecutor:
                     run_record.input_tokens = response.input_tokens
                     run_record.output_tokens = response.output_tokens
                     run_record.cost_usd = response.cost_usd
+                    run_record.reserved_cost_usd = Decimal("0")
                     run_record.latency_ms = int(
                         (now - run_record.started_at).total_seconds() * 1000
                     )
@@ -127,6 +170,7 @@ class AgentExecutor:
                         "trace_id": trace.trace_id,
                         "trace_url": trace.trace_url,
                         "cost_usd": str(response.cost_usd),
+                        "reserved_cost_usd": "0",
                         "latency_ms": run_record.latency_ms,
                         "run_id": str(run_record.id),
                     }
@@ -141,7 +185,8 @@ class AgentExecutor:
                     run_record.provider = provider_name
                     run_record.model = model
                     run_record.validation_status = ValidationStatus.SCHEMA_FAILED.value
-                    run_record.validation_attempts = 2
+                    run_record.validation_attempts = getattr(exc, "attempts", 1)
+                    run_record.reserved_cost_usd = Decimal("0")
                     run_record.latency_ms = int(
                         (now - run_record.started_at).total_seconds() * 1000
                     )
@@ -156,11 +201,13 @@ class AgentExecutor:
 
             now = datetime.now(UTC)
             error_message = "; ".join(provider_error_messages) or "Kein Provider war verfuegbar."
-            run_record.validation_status = ValidationStatus.PROVIDER_ERROR.value
-            run_record.latency_ms = int((now - run_record.started_at).total_seconds() * 1000)
-            run_record.completed_at = now
-            run_record.error_message = error_message
-            await session.commit()
+            await self._mark_run_failed(
+                session=session,
+                run_record=run_record,
+                validation_status=ValidationStatus.PROVIDER_ERROR.value,
+                error_message=error_message,
+                completed_at=now,
+            )
             trace.finish(output={"error": error_message})
             self.langfuse_hook.flush()
             raise LLMProviderUnavailableError(error_message)
@@ -205,8 +252,12 @@ class AgentExecutor:
             try:
                 return self._validate_output(retry_response.content), retry_response, 2
             except LLMSchemaValidationError as exc:
-                raise LLMSchemaValidationError(
-                    f"Schema-Validierung fuer {provider_name}/{model} zweimal fehlgeschlagen."
+                raise LLMSchemaValidationAttemptsError(
+                    (
+                        f"Schema-Validierung fuer {provider_name}/{model} "
+                        "zweimal fehlgeschlagen."
+                    ),
+                    attempts=2,
                 ) from exc
 
     def _validate_inputs(self, inputs: BaseModel) -> BaseModel:
@@ -246,15 +297,93 @@ class AgentExecutor:
         encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
         return hashlib.sha256(encoded).hexdigest()
 
-    async def _ensure_budget_available(self) -> None:
-        """Block execution when the configured daily budget is exhausted."""
+    async def _reserve_budget(
+        self,
+        session: AsyncSession,
+        run_record: AgentRun,
+        messages: list[LLMMessage],
+        candidates: list[tuple[str, LLMProvider, str]],
+    ) -> None:
+        """Reserve budget pessimistically before the first provider call."""
 
+        reservation = self._estimate_reserved_cost(messages, candidates)
+        budget_limit = Decimal(str(settings.llm_daily_budget_usd))
         day_start = datetime.combine(datetime.now(UTC).date(), time.min, tzinfo=UTC)
-        async with self.db_session_factory() as session:
-            query = select(func.coalesce(func.sum(AgentRun.cost_usd), Decimal("0"))).where(
-                AgentRun.started_at >= day_start
-            )
-            spent = await session.scalar(query)
+
+        await self._acquire_budget_lock(session)
+
+        budget_total_expression = func.coalesce(AgentRun.cost_usd, Decimal("0")) + func.coalesce(
+            AgentRun.reserved_cost_usd, Decimal("0")
+        )
+        query = select(func.coalesce(func.sum(budget_total_expression), Decimal("0"))).where(
+            AgentRun.started_at >= day_start
+        )
+        spent = await session.scalar(query)
         spent_decimal = spent if isinstance(spent, Decimal) else Decimal(str(spent or 0))
-        if spent_decimal >= Decimal(str(settings.llm_daily_budget_usd)):
-            raise LLMBudgetExceededError("Das taegliche LLM-Budget ist bereits ausgeschoepft.")
+        projected_total = spent_decimal + reservation
+
+        if budget_limit > 0 and projected_total / budget_limit >= BUDGET_WARNING_THRESHOLD:
+            logger.warning(
+                "llm_budget_threshold_reached",
+                agent_name=self.contract.name,
+                run_id=str(run_record.id),
+                spent_usd=str(spent_decimal),
+                reserved_usd=str(reservation),
+                projected_total_usd=str(projected_total),
+                budget_limit_usd=str(budget_limit),
+            )
+
+        if projected_total > budget_limit:
+            raise LLMBudgetExceededError(
+                "Das taegliche LLM-Budget ist bereits ausgeschoepft."
+            )
+
+        run_record.reserved_cost_usd = reservation
+        await session.commit()
+
+    async def _acquire_budget_lock(self, session: AsyncSession) -> None:
+        """Serialize Postgres budget reservations within one transaction."""
+
+        bind = session.get_bind()
+        if bind is None or bind.dialect.name != "postgresql":
+            return
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": BUDGET_LOCK_KEY},
+        )
+
+    def _estimate_reserved_cost(
+        self,
+        messages: list[LLMMessage],
+        candidates: list[tuple[str, LLMProvider, str]],
+    ) -> Decimal:
+        """Estimate a conservative reservation across all fallback candidates."""
+
+        prompt_characters = sum(len(message.content) for message in messages)
+        estimated_prompt_tokens = max(1, math.ceil(prompt_characters / 3))
+        estimated_input_tokens = (estimated_prompt_tokens * 2) + self.contract.max_tokens
+        estimated_output_tokens = self.contract.max_tokens * 2
+
+        reservation = max(
+            provider.estimate_cost(estimated_input_tokens, estimated_output_tokens, model)
+            for _, provider, model in candidates
+        )
+        return reservation.quantize(RESERVATION_PRECISION)
+
+    async def _mark_run_failed(
+        self,
+        session: AsyncSession,
+        run_record: AgentRun,
+        validation_status: str,
+        error_message: str,
+        completed_at: datetime | None = None,
+    ) -> None:
+        """Finalize a failed run record and persist it."""
+
+        finished_at = completed_at or datetime.now(UTC)
+        run_record.validation_status = validation_status
+        run_record.reserved_cost_usd = Decimal("0")
+        run_record.latency_ms = int((finished_at - run_record.started_at).total_seconds() * 1000)
+        run_record.completed_at = finished_at
+        run_record.error_message = error_message
+        await session.commit()

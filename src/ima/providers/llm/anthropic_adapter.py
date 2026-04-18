@@ -131,11 +131,13 @@ class AnthropicAdapter(LLMProvider):
             raise LLMRateLimitError("Anthropic rate limit reached.")
         if response.status_code >= 500:
             raise LLMProviderUnavailableError(
-                f"Anthropic server error: {response.status_code} {response.text}"
+                f"Anthropic server error: {response.status_code} {response.text}",
+                status_code=response.status_code,
             )
         if response.status_code >= 400:
             raise LLMProviderUnavailableError(
-                f"Anthropic request failed: {response.status_code} {response.text}"
+                f"Anthropic request failed: {response.status_code} {response.text}",
+                status_code=response.status_code,
             )
         return response.json()
 
